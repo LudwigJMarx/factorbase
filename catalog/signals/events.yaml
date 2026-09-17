@@ -1,0 +1,1045 @@
+# Crossings, breakouts and volume events.
+#
+# A crossing fires on the bar where the relation changed, never on every bar
+# where it holds. "Price is above its average" is a state and belongs in a
+# filter; "price crossed above its average today" is an event and belongs here.
+# Confusing the two turns a handful of entries a year into a permanent position,
+# and it is the most common way a signal backtest flatters itself.
+
+factors:
+  - id: price_crosses_above_ma
+    name: Price Crosses Above Moving Average
+    kind: signal
+    family: crossing
+    summary: The close moved from at or below its moving average to above it.
+    description: >-
+      Fires once, on the bar of the change. The bar before must have closed at
+      or below the average, which is why a series that opens above its average
+      never fires on its first bar.
+    formulas:
+      - latex: 'Cross_t = \left( C_t > MA_t(n) \right) \wedge \left( C_{t-1} \le MA_{t-1}(n) \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 200
+        minimum: 1
+        maximum: 100000
+        description: Window of the average.
+      - id: method
+        name: Average type
+        dtype: str
+        default: sma
+        choices: [sma, ema, wma]
+        description: Which average the close is compared against.
+    inputs: [close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
+    implementation: factorbase.factors.signals:price_crosses_above_ma
+    status: stable
+
+  - id: price_crosses_below_ma
+    name: Price Crosses Below Moving Average
+    kind: signal
+    family: crossing
+    summary: The close moved from at or above its moving average to below it.
+    description: >-
+      The mirror of the previous entry.
+    formulas:
+      - latex: 'Cross_t = \left( C_t < MA_t(n) \right) \wedge \left( C_{t-1} \ge MA_{t-1}(n) \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 200
+        minimum: 1
+        maximum: 100000
+        description: Window of the average.
+      - id: method
+        name: Average type
+        dtype: str
+        default: sma
+        choices: [sma, ema, wma]
+        description: Which average the close is compared against.
+    inputs: [close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
+    implementation: factorbase.factors.signals:price_crosses_below_ma
+    status: stable
+
+  - id: golden_cross
+    name: Golden Cross
+    kind: signal
+    family: crossing
+    summary: The fast moving average moved above the slow one.
+    description: >-
+      Two averages crossing, not price crossing an average. It fires rarely, a
+      handful of times a decade at the usual 50 and 200, which is worth knowing
+      before building a strategy that assumes a steady stream of entries.
+    formulas:
+      - latex: 'Golden_t = \left( MA_t(n_f) > MA_t(n_s) \right) \wedge \left( MA_{t-1}(n_f) \le MA_{t-1}(n_s) \right)'
+    parameters:
+      - id: fast_periods
+        name: Fast periods
+        dtype: int
+        default: 50
+        minimum: 1
+        maximum: 100000
+        description: Window of the faster average.
+      - id: slow_periods
+        name: Slow periods
+        dtype: int
+        default: 200
+        minimum: 1
+        maximum: 100000
+        description: Window of the slower average.
+      - id: method
+        name: Average type
+        dtype: str
+        default: sma
+        choices: [sma, ema, wma]
+        description: Which average both windows use.
+    inputs: [close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
+    implementation: factorbase.factors.signals:golden_cross
+    status: stable
+
+  - id: death_cross
+    name: Death Cross
+    kind: signal
+    family: crossing
+    summary: The fast moving average moved below the slow one.
+    description: >-
+      The mirror of the golden cross, and as rare.
+    formulas:
+      - latex: 'Death_t = \left( MA_t(n_f) < MA_t(n_s) \right) \wedge \left( MA_{t-1}(n_f) \ge MA_{t-1}(n_s) \right)'
+    parameters:
+      - id: fast_periods
+        name: Fast periods
+        dtype: int
+        default: 50
+        minimum: 1
+        maximum: 100000
+        description: Window of the faster average.
+      - id: slow_periods
+        name: Slow periods
+        dtype: int
+        default: 200
+        minimum: 1
+        maximum: 100000
+        description: Window of the slower average.
+      - id: method
+        name: Average type
+        dtype: str
+        default: sma
+        choices: [sma, ema, wma]
+        description: Which average both windows use.
+    inputs: [close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
+    implementation: factorbase.factors.signals:death_cross
+    status: stable
+
+  - id: ma_support
+    name: Moving Average Held as Support
+    kind: signal
+    family: crossing
+    summary: Traded down to the average and closed back above it.
+    description: >-
+      Both halves are required and both are often dropped. A bar that merely
+      closes above the average is not a test of support; a bar that closes below
+      it is a break, not a hold. The event is the pair: the low reached the
+      average and the close did not stay there.
+    formulas:
+      - latex: 'Support_t = \left( L_t \le MA_t(n) \cdot \left(1 + \frac{\tau}{100}\right) \right) \wedge \left( C_t > MA_t(n) \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 50
+        minimum: 1
+        maximum: 100000
+        description: Window of the average.
+      - id: method
+        name: Average type
+        dtype: str
+        default: sma
+        choices: [sma, ema, wma]
+        description: Which average acts as the level.
+      - id: tolerance
+        name: Tolerance
+        dtype: float
+        default: 1.0
+        minimum: 0.0
+        maximum: 100.0
+        description: How close to the average the low must come, in percent.
+    inputs: [low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
+    implementation: factorbase.factors.signals:ma_support
+    status: stable
+
+  - id: ma_resistance
+    name: Moving Average Held as Resistance
+    kind: signal
+    family: crossing
+    summary: Traded up to the average and closed back below it.
+    description: >-
+      The mirror of the support entry, with the same two-part requirement.
+    formulas:
+      - latex: 'Resistance_t = \left( H_t \ge MA_t(n) \cdot \left(1 - \frac{\tau}{100}\right) \right) \wedge \left( C_t < MA_t(n) \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 50
+        minimum: 1
+        maximum: 100000
+        description: Window of the average.
+      - id: method
+        name: Average type
+        dtype: str
+        default: sma
+        choices: [sma, ema, wma]
+        description: Which average acts as the level.
+      - id: tolerance
+        name: Tolerance
+        dtype: float
+        default: 1.0
+        minimum: 0.0
+        maximum: 100.0
+        description: How close to the average the high must come, in percent.
+    inputs: [high, close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
+    implementation: factorbase.factors.signals:ma_resistance
+    status: stable
+
+  - id: bollinger_support
+    name: Lower Bollinger Band Held
+    kind: signal
+    family: crossing
+    summary: Traded below the lower band and closed back inside it.
+    description: >-
+      A rejection at the band rather than a stay outside it. Closing outside the
+      band is common in a trend and is not this event.
+    formulas:
+      - latex: 'Support_t = \left( L_t \le L^{band}_t \right) \wedge \left( C_t > L^{band}_t \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 2
+        maximum: 100000
+        description: Window of the bands.
+      - id: deviations
+        name: Deviations
+        dtype: float
+        default: 2.0
+        minimum: 0.1
+        maximum: 10.0
+        description: Band distance in standard deviations.
+    inputs: [low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Bollinger, J. (2001). Bollinger on Bollinger Bands, ch. 8."
+    implementation: factorbase.factors.signals:bollinger_support
+    status: stable
+
+  - id: bollinger_resistance
+    name: Upper Bollinger Band Held
+    kind: signal
+    family: crossing
+    summary: Traded above the upper band and closed back inside it.
+    description: >-
+      The mirror of the support entry.
+    formulas:
+      - latex: 'Resistance_t = \left( H_t \ge U^{band}_t \right) \wedge \left( C_t < U^{band}_t \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 2
+        maximum: 100000
+        description: Window of the bands.
+      - id: deviations
+        name: Deviations
+        dtype: float
+        default: 2.0
+        minimum: 0.1
+        maximum: 10.0
+        description: Band distance in standard deviations.
+    inputs: [high, close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Bollinger, J. (2001). Bollinger on Bollinger Bands, ch. 8."
+    implementation: factorbase.factors.signals:bollinger_resistance
+    status: stable
+
+  - id: new_high
+    name: New High
+    kind: signal
+    family: breakout
+    summary: The close is the highest of the last n bars, and was not yesterday.
+    description: >-
+      The second clause is what makes it an event rather than a state. Without
+      it, a stock in a steady advance reports a new high on most bars, and a
+      backtest reading that as an entry is in the position permanently.
+    formulas:
+      - latex: 'High_t = \left( C_t \ge \max_{0 \le i < n} C_{t-i} \right) \wedge \neg \left( C_{t-1} \ge \max_{0 \le i < n} C_{t-1-i} \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 250
+        minimum: 1
+        maximum: 100000
+        description: Length of the lookback window.
+    inputs: [close]
+    unit: boolean
+    direction: higher
+    references:
+      - "O'Neil, W. J. (2009). How to Make Money in Stocks, 4th ed., ch. 3."
+    implementation: factorbase.factors.signals:new_high
+    status: stable
+
+  - id: new_low
+    name: New Low
+    kind: signal
+    family: breakout
+    summary: The close is the lowest of the last n bars, and was not yesterday.
+    description: >-
+      The mirror of the previous entry.
+    formulas:
+      - latex: 'Low_t = \left( C_t \le \min_{0 \le i < n} C_{t-i} \right) \wedge \neg \left( C_{t-1} \le \min_{0 \le i < n} C_{t-1-i} \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 250
+        minimum: 1
+        maximum: 100000
+        description: Length of the lookback window.
+    inputs: [close]
+    unit: boolean
+    direction: lower
+    references:
+      - "O'Neil, W. J. (2009). How to Make Money in Stocks, 4th ed., ch. 3."
+    implementation: factorbase.factors.signals:new_low
+    status: stable
+
+  - id: gap_up
+    name: Gap Up
+    kind: signal
+    family: breakout
+    summary: Opened above the previous bar's high by at least the stated margin.
+    description: >-
+      Measured open against previous high, not open against previous close. An
+      open above the previous close but inside its range is not a gap: the price
+      traded there yesterday, and there is no untraded space to fill.
+    formulas:
+      - latex: 'Gap_t = O_t > H_{t-1} \cdot \left( 1 + \frac{g}{100} \right)'
+    parameters:
+      - id: minimum_percent
+        name: Minimum gap
+        dtype: float
+        default: 1.0
+        minimum: 0.0
+        maximum: 1000.0
+        description: How far above the previous high the open must be, in percent.
+    inputs: [open, high]
+    unit: boolean
+    direction: higher
+    references:
+      - "Bulkowski, T. N. (2005). Encyclopedia of Chart Patterns, 2nd ed., ch. 21."
+    implementation: factorbase.factors.signals:gap_up
+    status: stable
+
+  - id: gap_down
+    name: Gap Down
+    kind: signal
+    family: breakout
+    summary: Opened below the previous bar's low by at least the stated margin.
+    description: >-
+      The mirror of the gap up, measured against the previous low for the same
+      reason.
+    formulas:
+      - latex: 'Gap_t = O_t < L_{t-1} \cdot \left( 1 - \frac{g}{100} \right)'
+    parameters:
+      - id: minimum_percent
+        name: Minimum gap
+        dtype: float
+        default: 1.0
+        minimum: 0.0
+        maximum: 1000.0
+        description: How far below the previous low the open must be, in percent.
+    inputs: [open, low]
+    unit: boolean
+    direction: lower
+    references:
+      - "Bulkowski, T. N. (2005). Encyclopedia of Chart Patterns, 2nd ed., ch. 21."
+    implementation: factorbase.factors.signals:gap_down
+    status: stable
+
+  - id: expansion_breakout
+    name: Range Expansion Breakout
+    kind: signal
+    family: breakout
+    summary: Closed above the n-bar high on a bar wider than usual.
+    description: >-
+      The width requirement is the filter and the only reason to prefer this
+      over a plain new high. A close a tick above a prior high on a narrow bar
+      is noise; the same close on a bar one and a half times the average true
+      range is a different event.
+    formulas:
+      - latex: 'Wide_t = \left( H_t - L_t \right) \ge k \cdot ATR_t(m)'
+      - latex: 'Breakout_t = \left( C_t > \max_{1 \le i \le n} H_{t-i} \right) \wedge Wide_t'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 1
+        maximum: 100000
+        description: Length of the prior-high window.
+      - id: atr_periods
+        name: ATR periods
+        dtype: int
+        default: 14
+        minimum: 1
+        maximum: 100000
+        description: Window of the average true range.
+      - id: range_multiple
+        name: Range multiple
+        dtype: float
+        default: 1.5
+        minimum: 0.1
+        maximum: 100.0
+        description: How many average true ranges wide the bar must be.
+    inputs: [high, low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Crabel, T. (1990). Day Trading with Short Term Price Patterns and Opening Range Breakout."
+    implementation: factorbase.factors.signals:expansion_breakout
+    status: stable
+
+  - id: expansion_breakdown
+    name: Range Expansion Breakdown
+    kind: signal
+    family: breakout
+    summary: Closed below the n-bar low on a bar wider than usual.
+    description: >-
+      The mirror of the breakout, with the same width filter.
+    formulas:
+      - latex: 'Breakdown_t = \left( C_t < \min_{1 \le i \le n} L_{t-i} \right) \wedge Wide_t'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 1
+        maximum: 100000
+        description: Length of the prior-low window.
+      - id: atr_periods
+        name: ATR periods
+        dtype: int
+        default: 14
+        minimum: 1
+        maximum: 100000
+        description: Window of the average true range.
+      - id: range_multiple
+        name: Range multiple
+        dtype: float
+        default: 1.5
+        minimum: 0.1
+        maximum: 100.0
+        description: How many average true ranges wide the bar must be.
+    inputs: [high, low, close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Crabel, T. (1990). Day Trading with Short Term Price Patterns and Opening Range Breakout."
+    implementation: factorbase.factors.signals:expansion_breakdown
+    status: stable
+
+  - id: darvas_breakout
+    name: Darvas Box Breakout
+    kind: signal
+    family: breakout
+    summary: Closed out of a box the price had actually been confined to.
+    description: >-
+      The box test is the substance. Requiring only a close above an n-bar high
+      admits the last bar of a vertical advance, where there was no box at all.
+      Here the window's high and low must sit within a stated percentage of each
+      other first, which is what "the price went nowhere" means in a number.
+
+      The box is taken as a fixed-length window rather than by Darvas's own
+      rule, which grows the box until a new high and a new low have both held.
+      The fixed window is cruder, reproducible and stated; the entry does not
+      pretend it is the original.
+    formulas:
+      - latex: 'BoxHigh_t = \max_{1 \le i \le n} H_{t-i}, \qquad BoxLow_t = \min_{1 \le i \le n} L_{t-i}'
+      - latex: 'IsBox_t = \frac{BoxHigh_t - BoxLow_t}{BoxLow_t} \cdot 100 \le \beta'
+      - latex: 'Breakout_t = \left( C_t > BoxHigh_t \right) \wedge IsBox_t'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 2
+        maximum: 100000
+        description: Length of the box window.
+      - id: box_tolerance
+        name: Box tolerance
+        dtype: float
+        default: 3.0
+        minimum: 0.0
+        maximum: 100.0
+        description: How wide the box may be, in percent, and still count as a box.
+    inputs: [high, low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Darvas, N. (1960). How I Made $2,000,000 in the Stock Market."
+    implementation: factorbase.factors.signals:darvas_breakout
+    status: stable
+
+  - id: pivot_high
+    name: Pivot High
+    kind: signal
+    family: structure
+    summary: A bar whose high exceeds the bars either side of it.
+    description: >-
+      A local high, confirmed by what came after it. The confirmation is the
+      catch: the value marked True on a bar is not knowable until `right` bars
+      later, so anything reading this Series in a backtest must shift it by
+      `right` or it is reading the future.
+
+      The entry keeps it in this form, with the warning, rather than shifting it
+      silently. A pivot shifted by default would be right for backtests and
+      wrong for drawing the chart, and a reader would have no way to tell which
+      they had.
+    formulas:
+      - latex: 'Pivot_t = H_t \ge \max_{-r \le j \le l} H_{t+j}'
+    parameters:
+      - id: left
+        name: Bars to the left
+        dtype: int
+        default: 5
+        minimum: 1
+        maximum: 1000
+        description: How many bars before must be lower.
+      - id: right
+        name: Bars to the right
+        dtype: int
+        default: 5
+        minimum: 1
+        maximum: 1000
+        description: How many bars after must be lower. Also the confirmation lag.
+    inputs: [high]
+    unit: boolean
+    direction: undefined
+    tags: [uses_future_bars]
+    references:
+      - "Livermore, J. (1940). How to Trade in Stocks, ch. 5."
+    implementation: factorbase.factors.signals:pivot_high
+    notes: >-
+      Reads `right` bars ahead by construction. Shift by `right` before using it
+      as a trading rule.
+    status: stable
+
+  - id: pivot_low
+    name: Pivot Low
+    kind: signal
+    family: structure
+    summary: A bar whose low undercuts the bars either side of it.
+    description: >-
+      The mirror of the pivot high, and it reads ahead in the same way and to
+      the same extent.
+    formulas:
+      - latex: 'Pivot_t = L_t \le \min_{-r \le j \le l} L_{t+j}'
+    parameters:
+      - id: left
+        name: Bars to the left
+        dtype: int
+        default: 5
+        minimum: 1
+        maximum: 1000
+        description: How many bars before must be higher.
+      - id: right
+        name: Bars to the right
+        dtype: int
+        default: 5
+        minimum: 1
+        maximum: 1000
+        description: How many bars after must be higher. Also the confirmation lag.
+    inputs: [low]
+    unit: boolean
+    direction: undefined
+    tags: [uses_future_bars]
+    references:
+      - "Livermore, J. (1940). How to Trade in Stocks, ch. 5."
+    implementation: factorbase.factors.signals:pivot_low
+    notes: >-
+      Reads `right` bars ahead by construction. Shift by `right` before using it
+      as a trading rule.
+    status: stable
+
+  - id: pivot_breakout
+    name: Pivot Breakout
+    kind: signal
+    family: breakout
+    summary: Closed above the most recent already-confirmed pivot high.
+    description: >-
+      Uses only pivots that had been confirmed by the time the bar closed, so
+      the level it breaks is `right` bars stale by construction. That staleness
+      is the price of not reading ahead, and it is the whole difference between
+      this entry and `pivot_high`.
+    formulas:
+      - latex: 'Level_t = H_{s}, \quad s = \max\left\{ u \le t - r : Pivot_u \right\}'
+      - latex: 'Breakout_t = \left( C_t > Level_t \right) \wedge \left( C_{t-1} \le Level_{t-1} \right)'
+    parameters:
+      - id: left
+        name: Bars to the left
+        dtype: int
+        default: 5
+        minimum: 1
+        maximum: 1000
+        description: How many bars before the pivot must be lower.
+      - id: right
+        name: Bars to the right
+        dtype: int
+        default: 5
+        minimum: 1
+        maximum: 1000
+        description: How many bars after must be lower, and the confirmation lag.
+    inputs: [high, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Livermore, J. (1940). How to Trade in Stocks, ch. 5."
+    implementation: factorbase.factors.signals:pivot_breakout
+    status: stable
+
+  - id: macd_cross_up
+    name: MACD Crosses Above Signal
+    kind: signal
+    family: crossing
+    summary: The MACD line moved above its signal line.
+    description: >-
+      The crossing itself, not the state of being above. Both lines are in
+      currency, so the size of the gap is not comparable between instruments,
+      but the crossing is.
+    formulas:
+      - latex: 'Cross_t = \left( MACD_t > Signal_t \right) \wedge \left( MACD_{t-1} \le Signal_{t-1} \right)'
+    parameters:
+      - id: fast_periods
+        name: Fast periods
+        dtype: int
+        default: 12
+        minimum: 1
+        maximum: 100000
+        description: Faster exponential average.
+      - id: slow_periods
+        name: Slow periods
+        dtype: int
+        default: 26
+        minimum: 1
+        maximum: 100000
+        description: Slower exponential average.
+      - id: signal_periods
+        name: Signal periods
+        dtype: int
+        default: 9
+        minimum: 1
+        maximum: 100000
+        description: Average applied to the MACD line.
+    inputs: [close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Appel, G. (2005). Technical Analysis: Power Tools for Active Investors, ch. 6."
+    implementation: factorbase.factors.signals:macd_cross_up
+    status: stable
+
+  - id: macd_cross_down
+    name: MACD Crosses Below Signal
+    kind: signal
+    family: crossing
+    summary: The MACD line moved below its signal line.
+    description: >-
+      The mirror of the previous entry.
+    formulas:
+      - latex: 'Cross_t = \left( MACD_t < Signal_t \right) \wedge \left( MACD_{t-1} \ge Signal_{t-1} \right)'
+    parameters:
+      - id: fast_periods
+        name: Fast periods
+        dtype: int
+        default: 12
+        minimum: 1
+        maximum: 100000
+        description: Faster exponential average.
+      - id: slow_periods
+        name: Slow periods
+        dtype: int
+        default: 26
+        minimum: 1
+        maximum: 100000
+        description: Slower exponential average.
+      - id: signal_periods
+        name: Signal periods
+        dtype: int
+        default: 9
+        minimum: 1
+        maximum: 100000
+        description: Average applied to the MACD line.
+    inputs: [close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Appel, G. (2005). Technical Analysis: Power Tools for Active Investors, ch. 6."
+    implementation: factorbase.factors.signals:macd_cross_down
+    status: stable
+
+  - id: stochastic_cross_up
+    name: Stochastic Crosses Up From Low
+    kind: signal
+    family: crossing
+    summary: Slow %K crossed above %D while both were still below the threshold.
+    description: >-
+      The threshold is the point of the entry. A crossing at 70 is a crossing;
+      a crossing below 20 is the one the method is about. Leaving the threshold
+      out produces several times as many firings, most of them mid-range and
+      meaningless.
+    formulas:
+      - latex: 'Cross_t = \left( \%K_t > \%D_t \right) \wedge \left( \%K_{t-1} \le \%D_{t-1} \right) \wedge \left( \%D_t < \theta \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 14
+        minimum: 1
+        maximum: 100000
+        description: Range window of the stochastic.
+      - id: smoothing
+        name: Smoothing
+        dtype: int
+        default: 3
+        minimum: 1
+        maximum: 100000
+        description: Smoothing applied at each stage.
+      - id: threshold
+        name: Threshold
+        dtype: float
+        default: 20.0
+        minimum: 0.0
+        maximum: 100.0
+        description: The %D line must be below this for the crossing to count.
+    inputs: [high, low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Lane, G. C. (1984). Lane on Stochastics. Technical Analysis of Stocks and Commodities 2(3)."
+    implementation: factorbase.factors.signals:stochastic_cross_up
+    status: stable
+
+  - id: stochastic_cross_down
+    name: Stochastic Crosses Down From High
+    kind: signal
+    family: crossing
+    summary: Slow %K crossed below %D while both were still above the threshold.
+    description: >-
+      The mirror of the previous entry, with the threshold at the other end.
+    formulas:
+      - latex: 'Cross_t = \left( \%K_t < \%D_t \right) \wedge \left( \%K_{t-1} \ge \%D_{t-1} \right) \wedge \left( \%D_t > \theta \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 14
+        minimum: 1
+        maximum: 100000
+        description: Range window of the stochastic.
+      - id: smoothing
+        name: Smoothing
+        dtype: int
+        default: 3
+        minimum: 1
+        maximum: 100000
+        description: Smoothing applied at each stage.
+      - id: threshold
+        name: Threshold
+        dtype: float
+        default: 80.0
+        minimum: 0.0
+        maximum: 100.0
+        description: The %D line must be above this for the crossing to count.
+    inputs: [high, low, close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Lane, G. C. (1984). Lane on Stochastics. Technical Analysis of Stocks and Commodities 2(3)."
+    implementation: factorbase.factors.signals:stochastic_cross_down
+    status: stable
+
+  - id: accumulation_day
+    name: Accumulation Day
+    kind: signal
+    family: volume_event
+    summary: Up day on above-average volume that closed in the upper part of its range.
+    description: >-
+      The closing position is the part usually left out. A bar that rises on
+      heavy volume and gives most of it back before the close is not
+      accumulation; without the position test it counts as one, and a tally of
+      such days then measures activity rather than demand.
+    formulas:
+      - latex: 'pos_t = \frac{C_t - L_t}{H_t - L_t}'
+      - latex: 'Accum_t = \left( C_t > C_{t-1} \right) \wedge \left( V_t \ge k \overline{V}_t(n) \right) \wedge \left( pos_t \ge p \right)'
+        note: The volume average excludes the current bar.
+    parameters:
+      - id: periods
+        name: Volume periods
+        dtype: int
+        default: 50
+        minimum: 1
+        maximum: 100000
+        description: Window of the volume average.
+      - id: volume_multiple
+        name: Volume multiple
+        dtype: float
+        default: 1.0
+        minimum: 0.0
+        maximum: 100.0
+        description: How many average volumes the bar must trade.
+      - id: close_position
+        name: Close position
+        dtype: float
+        default: 0.6
+        minimum: 0.0
+        maximum: 1.0
+        description: How high in its range the bar must close.
+    inputs: [high, low, close, volume]
+    unit: boolean
+    direction: higher
+    references:
+      - "O'Neil, W. J. (2009). How to Make Money in Stocks, 4th ed., ch. 3."
+    implementation: factorbase.factors.signals:accumulation_day
+    status: stable
+
+  - id: distribution_day
+    name: Distribution Day
+    kind: signal
+    family: volume_event
+    summary: Down day of at least the stated size on volume above the previous bar's.
+    description: >-
+      Volume against the previous bar, not against an average, which is the
+      convention the term comes from and is deliberately easy to satisfy.
+      Counting distribution days is a tally over weeks; the individual bar is
+      allowed to be a weak signal, and making it a strong one would defeat the
+      count.
+    formulas:
+      - latex: 'Dist_t = \left( \left( \frac{C_t}{C_{t-1}} - 1 \right) \cdot 100 \le -f \right) \wedge \left( V_t > V_{t-1} \right)'
+    parameters:
+      - id: minimum_fall
+        name: Minimum fall
+        dtype: float
+        default: 0.2
+        minimum: 0.0
+        maximum: 100.0
+        description: How far the close must fall, in percent.
+    inputs: [close, volume]
+    unit: boolean
+    direction: lower
+    references:
+      - "O'Neil, W. J. (2009). How to Make Money in Stocks, 4th ed., ch. 9."
+    implementation: factorbase.factors.signals:distribution_day
+    status: stable
+
+  - id: volume_peak
+    name: Volume Peak
+    kind: signal
+    family: volume_event
+    summary: Volume is the highest of the last n bars, and was not yesterday.
+    description: >-
+      Same event-not-state construction as the new high. A single heavy day
+      inside a heavy week would otherwise fire on every bar of that week.
+    formulas:
+      - latex: 'Peak_t = \left( V_t \ge \max_{0 \le i < n} V_{t-i} \right) \wedge \neg \left( V_{t-1} \ge \max_{0 \le i < n} V_{t-1-i} \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 250
+        minimum: 1
+        maximum: 100000
+        description: Length of the lookback window.
+    inputs: [volume]
+    unit: boolean
+    direction: undefined
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 16."
+    implementation: factorbase.factors.signals:volume_peak
+    status: stable
+
+  - id: buying_climax
+    name: Buying Climax
+    kind: signal
+    family: volume_event
+    summary: An extended advance ending in a wide, heavy bar that closed poorly.
+    description: >-
+      Four conditions, all required: the advance happened, the bar is unusually
+      wide, the volume is unusually heavy, and the close gave most of the bar's
+      gain back. The last one is what makes it a climax rather than a strong
+      day, and it is the one most often dropped.
+
+      At the default thresholds it is rare. On a random walk it never fires,
+      which is the intended behaviour: the pattern describes a specific
+      exhaustion, not a busy session.
+    formulas:
+      - latex: 'Adv_t = \left( \frac{C_t}{C_{t-n}} - 1 \right) \cdot 100 \ge a'
+      - latex: 'Heavy_t = V_t \ge k_v \overline{V}_t(m), \qquad Wide_t = \left( H_t - L_t \right) \ge k_r ATR_t'
+      - latex: 'Climax_t = Adv_t \wedge Heavy_t \wedge Wide_t \wedge \left( \frac{C_t - L_t}{H_t - L_t} \le p \right)'
+    parameters:
+      - id: advance_periods
+        name: Advance periods
+        dtype: int
+        default: 50
+        minimum: 1
+        maximum: 100000
+        description: Window the preceding advance is measured over.
+      - id: minimum_advance
+        name: Minimum advance
+        dtype: float
+        default: 25.0
+        minimum: 0.0
+        maximum: 10000.0
+        description: How far the price must have risen, in percent.
+      - id: volume_periods
+        name: Volume periods
+        dtype: int
+        default: 50
+        minimum: 1
+        maximum: 100000
+        description: Window of the volume average.
+      - id: volume_multiple
+        name: Volume multiple
+        dtype: float
+        default: 2.0
+        minimum: 0.0
+        maximum: 100.0
+        description: How many average volumes the bar must trade.
+      - id: atr_periods
+        name: ATR periods
+        dtype: int
+        default: 14
+        minimum: 1
+        maximum: 100000
+        description: Window of the average true range.
+      - id: range_multiple
+        name: Range multiple
+        dtype: float
+        default: 2.0
+        minimum: 0.1
+        maximum: 100.0
+        description: How many average true ranges wide the bar must be.
+      - id: close_position
+        name: Close position
+        dtype: float
+        default: 0.4
+        minimum: 0.0
+        maximum: 1.0
+        description: How low in its range the bar must close.
+    inputs: [high, low, close, volume]
+    unit: boolean
+    direction: lower
+    references:
+      - "Wyckoff, R. D., in Pruden, H. (2007). The Three Skills of Top Trading, ch. 3."
+    implementation: factorbase.factors.signals:buying_climax
+    status: stable
+
+  - id: selling_climax
+    name: Selling Climax
+    kind: signal
+    family: volume_event
+    summary: An extended decline ending in a wide, heavy bar that closed well.
+    description: >-
+      The mirror of the buying climax, with the closing position at the other
+      end of the bar.
+    formulas:
+      - latex: 'Dec_t = \left( \frac{C_t}{C_{t-n}} - 1 \right) \cdot 100 \le -d'
+      - latex: 'Climax_t = Dec_t \wedge Heavy_t \wedge Wide_t \wedge \left( \frac{C_t - L_t}{H_t - L_t} \ge p \right)'
+    parameters:
+      - id: decline_periods
+        name: Decline periods
+        dtype: int
+        default: 50
+        minimum: 1
+        maximum: 100000
+        description: Window the preceding decline is measured over.
+      - id: minimum_decline
+        name: Minimum decline
+        dtype: float
+        default: 25.0
+        minimum: 0.0
+        maximum: 100.0
+        description: How far the price must have fallen, in percent.
+      - id: volume_periods
+        name: Volume periods
+        dtype: int
+        default: 50
+        minimum: 1
+        maximum: 100000
+        description: Window of the volume average.
+      - id: volume_multiple
+        name: Volume multiple
+        dtype: float
+        default: 2.0
+        minimum: 0.0
+        maximum: 100.0
+        description: How many average volumes the bar must trade.
+      - id: atr_periods
+        name: ATR periods
+        dtype: int
+        default: 14
+        minimum: 1
+        maximum: 100000
+        description: Window of the average true range.
+      - id: range_multiple
+        name: Range multiple
+        dtype: float
+        default: 2.0
+        minimum: 0.1
+        maximum: 100.0
+        description: How many average true ranges wide the bar must be.
+      - id: close_position
+        name: Close position
+        dtype: float
+        default: 0.6
+        minimum: 0.0
+        maximum: 1.0
+        description: How high in its range the bar must close.
+    inputs: [high, low, close, volume]
+    unit: boolean
+    direction: higher
+    references:
+      - "Wyckoff, R. D., in Pruden, H. (2007). The Three Skills of Top Trading, ch. 3."
+    implementation: factorbase.factors.signals:selling_climax
+    status: stable
