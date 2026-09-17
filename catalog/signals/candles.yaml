@@ -1,0 +1,745 @@
+# Candlestick patterns.
+#
+# Every rule below is written out. "A long body" and "a short shadow" are not
+# computable until a threshold is fixed, so each threshold is a parameter with a
+# stated default. The defaults are this package's choices. Two charting packages
+# will disagree about what counts as a hammer; this one at least says what it
+# counted.
+#
+# Shared symbols, used throughout:
+#   O, H, L, C   the bar's open, high, low, close
+#   S = H - L    the range
+#   B = |C - O|  the body
+#   U = H - max(O, C)   the upper shadow
+#   D = min(O, C) - L   the lower shadow
+#
+# A bar with S = 0 cannot be evaluated. It yields False, not True and not NaN.
+
+factors:
+  - id: cs_doji
+    name: Doji
+    kind: signal
+    family: candlestick
+    summary: Open and close within a small fraction of the bar's range.
+    description: >-
+      The session ended where it began after travelling in both directions.
+      Read as indecision, which is a description of the bar rather than a
+      forecast: a doji in a quiet range and a doji at the end of a long advance
+      are the same shape and different information.
+    formulas:
+      - latex: 'Doji_t = \frac{B_t}{S_t} \le \theta'
+    parameters:
+      - id: max_body_ratio
+        name: Maximum body ratio
+        dtype: float
+        default: 0.05
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest body, as a share of the range, that still counts.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: undefined
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 3."
+    implementation: factorbase.factors.candles:doji
+    status: stable
+
+  - id: cs_dragonfly_doji
+    name: Dragonfly Doji
+    kind: signal
+    family: candlestick
+    summary: A doji whose entire range lies below the open and close.
+    description: >-
+      Price fell hard through the session and came all the way back to the
+      open. The absence of an upper shadow is what separates it from an
+      ordinary doji and is the whole content of the pattern.
+    formulas:
+      - latex: 'Dragonfly_t = \left( \frac{B_t}{S_t} \le \theta \right) \wedge \left( \frac{U_t}{S_t} \le \upsilon \right)'
+    parameters:
+      - id: max_body_ratio
+        name: Maximum body ratio
+        dtype: float
+        default: 0.05
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest body, as a share of the range, that still counts.
+      - id: max_upper_ratio
+        name: Maximum upper shadow
+        dtype: float
+        default: 0.1
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest upper shadow, as a share of the range.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: undefined
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 3."
+    implementation: factorbase.factors.candles:dragonfly_doji
+    status: stable
+
+  - id: cs_gravestone_doji
+    name: Gravestone Doji
+    kind: signal
+    family: candlestick
+    summary: A doji whose entire range lies above the open and close.
+    description: >-
+      The mirror of the dragonfly. Price ran up through the session and gave it
+      all back by the close.
+    formulas:
+      - latex: 'Gravestone_t = \left( \frac{B_t}{S_t} \le \theta \right) \wedge \left( \frac{D_t}{S_t} \le \delta \right)'
+    parameters:
+      - id: max_body_ratio
+        name: Maximum body ratio
+        dtype: float
+        default: 0.05
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest body, as a share of the range, that still counts.
+      - id: max_lower_ratio
+        name: Maximum lower shadow
+        dtype: float
+        default: 0.1
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest lower shadow, as a share of the range.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: undefined
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 3."
+    implementation: factorbase.factors.candles:gravestone_doji
+    status: stable
+
+  - id: cs_spinning_top
+    name: Spinning Top
+    kind: signal
+    family: candlestick
+    summary: Small body with a shadow of its own on both sides.
+    description: >-
+      Wider than a doji and looser in its requirement, so it fires far more
+      often. At the default thresholds it appears on roughly one bar in five of
+      an ordinary series, which is worth knowing before using it as a filter.
+    formulas:
+      - latex: 'Top_t = \left( \frac{B_t}{S_t} \le \theta \right) \wedge \left( \frac{U_t}{S_t} \ge \mu \right) \wedge \left( \frac{D_t}{S_t} \ge \mu \right)'
+    parameters:
+      - id: max_body_ratio
+        name: Maximum body ratio
+        dtype: float
+        default: 0.3
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest body, as a share of the range.
+      - id: min_shadow_ratio
+        name: Minimum shadow
+        dtype: float
+        default: 0.25
+        minimum: 0.0
+        maximum: 1.0
+        description: Smallest each shadow may be, as a share of the range.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: undefined
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 3."
+    implementation: factorbase.factors.candles:spinning_top
+    status: stable
+
+  - id: cs_big_white_candle
+    name: Big White Candle
+    kind: signal
+    family: candlestick
+    summary: A long up bar that closed near its high.
+    description: >-
+      Long is measured against this instrument's own recent bodies, not against
+      an absolute size. A two-euro body is long for a utility and nothing for a
+      biotech, and a scanner using a fixed threshold finds only the volatile
+      half of any universe.
+    formulas:
+      - latex: '\overline{B}_t = \frac{1}{n} \sum_{i=1}^{n} B_{t-i}'
+        note: The average excludes the current bar, so a long bar is not measured against itself.
+      - latex: 'BigWhite_t = \left( C_t > O_t \right) \wedge \left( B_t \ge k \overline{B}_t \right) \wedge \left( \frac{B_t}{S_t} \ge \beta \right)'
+    parameters:
+      - id: periods
+        name: Reference periods
+        dtype: int
+        default: 20
+        minimum: 1
+        maximum: 100000
+        description: Window of the average body length.
+      - id: multiple
+        name: Length multiple
+        dtype: float
+        default: 1.5
+        minimum: 0.1
+        maximum: 100.0
+        description: How many average bodies long the bar must be.
+      - id: min_body_ratio
+        name: Minimum body ratio
+        dtype: float
+        default: 0.6
+        minimum: 0.0
+        maximum: 1.0
+        description: Smallest share of the range the body may occupy.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 3."
+    implementation: factorbase.factors.candles:big_white_candle
+    status: stable
+
+  - id: cs_big_black_candle
+    name: Big Black Candle
+    kind: signal
+    family: candlestick
+    summary: A long down bar that closed near its low.
+    description: >-
+      The mirror of the previous entry, with the same relative measure of
+      length.
+    formulas:
+      - latex: 'BigBlack_t = \left( C_t < O_t \right) \wedge \left( B_t \ge k \overline{B}_t \right) \wedge \left( \frac{B_t}{S_t} \ge \beta \right)'
+    parameters:
+      - id: periods
+        name: Reference periods
+        dtype: int
+        default: 20
+        minimum: 1
+        maximum: 100000
+        description: Window of the average body length.
+      - id: multiple
+        name: Length multiple
+        dtype: float
+        default: 1.5
+        minimum: 0.1
+        maximum: 100.0
+        description: How many average bodies long the bar must be.
+      - id: min_body_ratio
+        name: Minimum body ratio
+        dtype: float
+        default: 0.6
+        minimum: 0.0
+        maximum: 1.0
+        description: Smallest share of the range the body may occupy.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 3."
+    implementation: factorbase.factors.candles:big_black_candle
+    status: stable
+
+  - id: cs_white_marubozu
+    name: White Marubozu
+    kind: signal
+    family: candlestick
+    summary: An up bar with effectively no shadows.
+    description: >-
+      Opened at the low, closed at the high, never traded outside the body. On
+      daily data with real tick sizes it is rare; on a series where it fires
+      often, the data is probably synthetic or thinly traded.
+    formulas:
+      - latex: 'WhiteMarubozu_t = \left( C_t > O_t \right) \wedge \left( \frac{U_t}{S_t} \le \sigma \right) \wedge \left( \frac{D_t}{S_t} \le \sigma \right)'
+    parameters:
+      - id: max_shadow_ratio
+        name: Maximum shadow
+        dtype: float
+        default: 0.03
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest either shadow may be, as a share of the range.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 3."
+    implementation: factorbase.factors.candles:white_marubozu
+    status: stable
+
+  - id: cs_black_marubozu
+    name: Black Marubozu
+    kind: signal
+    family: candlestick
+    summary: A down bar with effectively no shadows.
+    description: >-
+      The mirror of the white one, and as rare.
+    formulas:
+      - latex: 'BlackMarubozu_t = \left( C_t < O_t \right) \wedge \left( \frac{U_t}{S_t} \le \sigma \right) \wedge \left( \frac{D_t}{S_t} \le \sigma \right)'
+    parameters:
+      - id: max_shadow_ratio
+        name: Maximum shadow
+        dtype: float
+        default: 0.03
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest either shadow may be, as a share of the range.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 3."
+    implementation: factorbase.factors.candles:black_marubozu
+    status: stable
+
+  - id: cs_hammer
+    name: Hammer
+    kind: signal
+    family: candlestick
+    summary: Small body at the top of the range with a long lower shadow, after a decline.
+    description: >-
+      The preceding decline is part of the definition and is the part pattern
+      scanners routinely drop. Without it the same shape found mid-advance
+      counts, and that is a different bar carrying different information. The
+      trend test here is a simple one, the close n bars ago against the close
+      before the hammer, which is coarse and stated rather than hidden.
+    formulas:
+      - latex: 'Hammer_t = \left( \frac{B_t}{S_t} \le \theta \right) \wedge \left( \frac{D_t}{S_t} \ge \delta \right) \wedge \left( \frac{U_t}{S_t} \le \upsilon \right) \wedge \left( C_{t-1} < C_{t-1-m} \right)'
+    parameters:
+      - id: max_body_ratio
+        name: Maximum body ratio
+        dtype: float
+        default: 0.3
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest body, as a share of the range.
+      - id: min_lower_ratio
+        name: Minimum lower shadow
+        dtype: float
+        default: 0.5
+        minimum: 0.0
+        maximum: 1.0
+        description: Smallest lower shadow, as a share of the range.
+      - id: max_upper_ratio
+        name: Maximum upper shadow
+        dtype: float
+        default: 0.15
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest upper shadow, as a share of the range.
+      - id: trend_periods
+        name: Trend lookback
+        dtype: int
+        default: 10
+        minimum: 1
+        maximum: 100000
+        description: Over how many bars the preceding decline is measured.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 4."
+    implementation: factorbase.factors.candles:hammer
+    status: stable
+
+  - id: cs_shooting_star
+    name: Shooting Star
+    kind: signal
+    family: candlestick
+    summary: Small body at the bottom of the range with a long upper shadow, after an advance.
+    description: >-
+      The mirror of the hammer, and it carries the same requirement on what
+      came before it.
+    formulas:
+      - latex: 'Star_t = \left( \frac{B_t}{S_t} \le \theta \right) \wedge \left( \frac{U_t}{S_t} \ge \upsilon \right) \wedge \left( \frac{D_t}{S_t} \le \delta \right) \wedge \left( C_{t-1} > C_{t-1-m} \right)'
+    parameters:
+      - id: max_body_ratio
+        name: Maximum body ratio
+        dtype: float
+        default: 0.3
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest body, as a share of the range.
+      - id: min_upper_ratio
+        name: Minimum upper shadow
+        dtype: float
+        default: 0.5
+        minimum: 0.0
+        maximum: 1.0
+        description: Smallest upper shadow, as a share of the range.
+      - id: max_lower_ratio
+        name: Maximum lower shadow
+        dtype: float
+        default: 0.15
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest lower shadow, as a share of the range.
+      - id: trend_periods
+        name: Trend lookback
+        dtype: int
+        default: 10
+        minimum: 1
+        maximum: 100000
+        description: Over how many bars the preceding advance is measured.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 4."
+    implementation: factorbase.factors.candles:shooting_star
+    status: stable
+
+  - id: cs_bullish_belt_hold
+    name: Bullish Belt Hold
+    kind: signal
+    family: candlestick
+    summary: Opens at its low and closes well up.
+    description: >-
+      A long up bar with no lower shadow: the low of the session was the first
+      print. Distinguished from a white marubozu only by tolerating an upper
+      shadow.
+    formulas:
+      - latex: 'BeltHold_t = \left( C_t > O_t \right) \wedge \left( \frac{D_t}{S_t} \le \delta \right) \wedge \left( \frac{B_t}{S_t} \ge \beta \right)'
+    parameters:
+      - id: max_lower_ratio
+        name: Maximum lower shadow
+        dtype: float
+        default: 0.03
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest lower shadow, as a share of the range.
+      - id: min_body_ratio
+        name: Minimum body ratio
+        dtype: float
+        default: 0.6
+        minimum: 0.0
+        maximum: 1.0
+        description: Smallest share of the range the body must occupy.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 5."
+    implementation: factorbase.factors.candles:bullish_belt_hold
+    status: stable
+
+  - id: cs_bearish_belt_hold
+    name: Bearish Belt Hold
+    kind: signal
+    family: candlestick
+    summary: Opens at its high and closes well down.
+    description: >-
+      The mirror: the high of the session was the first print.
+    formulas:
+      - latex: 'BeltHold_t = \left( C_t < O_t \right) \wedge \left( \frac{U_t}{S_t} \le \upsilon \right) \wedge \left( \frac{B_t}{S_t} \ge \beta \right)'
+    parameters:
+      - id: max_upper_ratio
+        name: Maximum upper shadow
+        dtype: float
+        default: 0.03
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest upper shadow, as a share of the range.
+      - id: min_body_ratio
+        name: Minimum body ratio
+        dtype: float
+        default: 0.6
+        minimum: 0.0
+        maximum: 1.0
+        description: Smallest share of the range the body must occupy.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 5."
+    implementation: factorbase.factors.candles:bearish_belt_hold
+    status: stable
+
+  - id: cs_bullish_engulfing
+    name: Bullish Engulfing
+    kind: signal
+    family: candlestick
+    summary: An up bar whose body covers the previous down bar's body.
+    description: >-
+      Body against body. The shadows are deliberately not part of the pattern,
+      which is the point most implementations get wrong by comparing highs and
+      lows instead. A bar that engulfs the previous range but not its body is a
+      different event with a different name.
+    formulas:
+      - latex: 'top_t = \max(O_t, C_t), \qquad bot_t = \min(O_t, C_t)'
+      - latex: 'Engulf_t = \left( C_t > O_t \right) \wedge \left( C_{t-1} < O_{t-1} \right) \wedge \left( bot_t \le bot_{t-1} \right) \wedge \left( top_t \ge top_{t-1} \right) \wedge \left( B_t > B_{t-1} \right)'
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 4."
+    implementation: factorbase.factors.candles:bullish_engulfing
+    status: stable
+
+  - id: cs_bearish_engulfing
+    name: Bearish Engulfing
+    kind: signal
+    family: candlestick
+    summary: A down bar whose body covers the previous up bar's body.
+    description: >-
+      The mirror, with the same body-against-body rule.
+    formulas:
+      - latex: 'Engulf_t = \left( C_t < O_t \right) \wedge \left( C_{t-1} > O_{t-1} \right) \wedge \left( bot_t \le bot_{t-1} \right) \wedge \left( top_t \ge top_{t-1} \right) \wedge \left( B_t > B_{t-1} \right)'
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 4."
+    implementation: factorbase.factors.candles:bearish_engulfing
+    status: stable
+
+  - id: cs_bullish_harami
+    name: Bullish Harami
+    kind: signal
+    family: candlestick
+    summary: A small up body contained inside the previous long down body.
+    description: >-
+      The reverse containment of the engulfing pattern: here the earlier bar is
+      the large one. The order matters and the two are routinely confused
+      because both compare two consecutive bodies.
+    formulas:
+      - latex: 'Harami_t = \left( C_t > O_t \right) \wedge \left( C_{t-1} < O_{t-1} \right) \wedge \left( top_t \le top_{t-1} \right) \wedge \left( bot_t \ge bot_{t-1} \right) \wedge \left( B_t < B_{t-1} \right)'
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 4."
+    implementation: factorbase.factors.candles:bullish_harami
+    status: stable
+
+  - id: cs_bearish_harami
+    name: Bearish Harami
+    kind: signal
+    family: candlestick
+    summary: A small down body contained inside the previous long up body.
+    description: >-
+      The mirror of the bullish harami.
+    formulas:
+      - latex: 'Harami_t = \left( C_t < O_t \right) \wedge \left( C_{t-1} > O_{t-1} \right) \wedge \left( top_t \le top_{t-1} \right) \wedge \left( bot_t \ge bot_{t-1} \right) \wedge \left( B_t < B_{t-1} \right)'
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 4."
+    implementation: factorbase.factors.candles:bearish_harami
+    status: stable
+
+  - id: cs_above_the_stomach
+    name: Above the Stomach
+    kind: signal
+    family: candlestick
+    summary: An up bar opening and closing above the midpoint of the previous down bar's body.
+    description: >-
+      A weaker cousin of the engulfing pattern: the new bar need only clear the
+      middle of the old body, not all of it. It therefore fires more often, and
+      is worth separating from the engulfing entry rather than folding into it.
+    formulas:
+      - latex: 'mid_{t-1} = \frac{top_{t-1} + bot_{t-1}}{2}'
+      - latex: 'Above_t = \left( C_t > O_t \right) \wedge \left( C_{t-1} < O_{t-1} \right) \wedge \left( O_t \ge mid_{t-1} \right) \wedge \left( C_t \ge mid_{t-1} \right)'
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Bulkowski, T. N. (2008). Encyclopedia of Candlestick Charts."
+    implementation: factorbase.factors.candles:above_the_stomach
+    status: stable
+
+  - id: cs_below_the_stomach
+    name: Below the Stomach
+    kind: signal
+    family: candlestick
+    summary: A down bar opening and closing below the midpoint of the previous up bar's body.
+    description: >-
+      The mirror of the previous entry.
+    formulas:
+      - latex: 'Below_t = \left( C_t < O_t \right) \wedge \left( C_{t-1} > O_{t-1} \right) \wedge \left( O_t \le mid_{t-1} \right) \wedge \left( C_t \le mid_{t-1} \right)'
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Bulkowski, T. N. (2008). Encyclopedia of Candlestick Charts."
+    implementation: factorbase.factors.candles:below_the_stomach
+    status: stable
+
+  - id: cs_morning_star
+    name: Morning Star
+    kind: signal
+    family: candlestick
+    summary: Long down bar, small-bodied bar, then an up bar well into the first body.
+    description: >-
+      The third bar has to close a stated fraction of the way up the first
+      bar's body. Scanners that drop the penetration requirement turn the
+      pattern into "any small bar between two others", and it then fires on
+      several percent of all bars.
+    formulas:
+      - latex: 'pen_t = \frac{C_t - bot_{t-2}}{top_{t-2} - bot_{t-2}}'
+      - latex: 'Morning_t = \left( C_{t-2} < O_{t-2} \right) \wedge \left( \frac{B_{t-1}}{S_{t-1}} \le \theta \right) \wedge \left( C_t > O_t \right) \wedge \left( pen_t \ge p \right)'
+    parameters:
+      - id: max_star_body_ratio
+        name: Maximum star body
+        dtype: float
+        default: 0.3
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest body the middle bar may have, as a share of its range.
+      - id: min_penetration
+        name: Minimum penetration
+        dtype: float
+        default: 0.5
+        minimum: 0.0
+        maximum: 1.0
+        description: How far into the first body the third bar must close.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 4."
+    implementation: factorbase.factors.candles:morning_star
+    status: stable
+
+  - id: cs_evening_star
+    name: Evening Star
+    kind: signal
+    family: candlestick
+    summary: Long up bar, small-bodied bar, then a down bar well into the first body.
+    description: >-
+      The mirror of the morning star, with the same penetration requirement.
+    formulas:
+      - latex: 'pen_t = \frac{top_{t-2} - C_t}{top_{t-2} - bot_{t-2}}'
+      - latex: 'Evening_t = \left( C_{t-2} > O_{t-2} \right) \wedge \left( \frac{B_{t-1}}{S_{t-1}} \le \theta \right) \wedge \left( C_t < O_t \right) \wedge \left( pen_t \ge p \right)'
+    parameters:
+      - id: max_star_body_ratio
+        name: Maximum star body
+        dtype: float
+        default: 0.3
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest body the middle bar may have, as a share of its range.
+      - id: min_penetration
+        name: Minimum penetration
+        dtype: float
+        default: 0.5
+        minimum: 0.0
+        maximum: 1.0
+        description: How far into the first body the third bar must close.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 4."
+    implementation: factorbase.factors.candles:evening_star
+    status: stable
+
+  - id: cs_three_white_soldiers
+    name: Three White Soldiers
+    kind: signal
+    family: candlestick
+    summary: Three long up bars, each closing above the last and opening inside its body.
+    description: >-
+      The opening-inside requirement is what separates the pattern from three
+      consecutive gaps up. Without it, a series of gap openings qualifies, and
+      that is a different formation with a different resolution.
+    formulas:
+      - latex: 'Soldiers_t = \bigwedge_{j=0}^{2} \left[ \left( C_{t-j} > O_{t-j} \right) \wedge \left( B_{t-j} \ge k \overline{B}_{t-j} \right) \wedge \left( \frac{U_{t-j}}{S_{t-j}} \le \upsilon \right) \right]'
+      - latex: '\wedge \; \left( C_t > C_{t-1} > C_{t-2} \right) \wedge \bigwedge_{j=0}^{1} \left( bot_{t-j-1} \le O_{t-j} \le top_{t-j-1} \right)'
+    parameters:
+      - id: periods
+        name: Reference periods
+        dtype: int
+        default: 20
+        minimum: 1
+        maximum: 100000
+        description: Window of the average body length.
+      - id: multiple
+        name: Length multiple
+        dtype: float
+        default: 1.0
+        minimum: 0.1
+        maximum: 100.0
+        description: How many average bodies long each bar must be.
+      - id: max_upper_ratio
+        name: Maximum upper shadow
+        dtype: float
+        default: 0.25
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest upper shadow each bar may have.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 6."
+    implementation: factorbase.factors.candles:three_white_soldiers
+    status: stable
+
+  - id: cs_three_black_crows
+    name: Three Black Crows
+    kind: signal
+    family: candlestick
+    summary: Three long down bars, each closing below the last and opening inside its body.
+    description: >-
+      The mirror of the soldiers, with the same opening-inside requirement and
+      the same reason for it.
+    formulas:
+      - latex: 'Crows_t = \bigwedge_{j=0}^{2} \left[ \left( C_{t-j} < O_{t-j} \right) \wedge \left( B_{t-j} \ge k \overline{B}_{t-j} \right) \wedge \left( \frac{D_{t-j}}{S_{t-j}} \le \delta \right) \right]'
+      - latex: '\wedge \; \left( C_t < C_{t-1} < C_{t-2} \right) \wedge \bigwedge_{j=0}^{1} \left( bot_{t-j-1} \le O_{t-j} \le top_{t-j-1} \right)'
+    parameters:
+      - id: periods
+        name: Reference periods
+        dtype: int
+        default: 20
+        minimum: 1
+        maximum: 100000
+        description: Window of the average body length.
+      - id: multiple
+        name: Length multiple
+        dtype: float
+        default: 1.0
+        minimum: 0.1
+        maximum: 100.0
+        description: How many average bodies long each bar must be.
+      - id: max_lower_ratio
+        name: Maximum lower shadow
+        dtype: float
+        default: 0.25
+        minimum: 0.0
+        maximum: 1.0
+        description: Largest lower shadow each bar may have.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Nison, S. (2001). Japanese Candlestick Charting Techniques, 2nd ed., ch. 6."
+    implementation: factorbase.factors.candles:three_black_crows
+    status: stable
+
+  - id: cs_bullish_popgun
+    name: Bullish Popgun
+    kind: signal
+    family: candlestick
+    summary: An inside bar followed by an up bar that engulfs its whole range.
+    description: >-
+      Range against range here, unlike the engulfing patterns, and on purpose:
+      the pattern is about a compressed bar being overrun, and compression is a
+      property of the range, not of the body.
+    formulas:
+      - latex: 'Inside_{t-1} = \left( H_{t-1} < H_{t-2} \right) \wedge \left( L_{t-1} > L_{t-2} \right)'
+      - latex: 'Popgun_t = Inside_{t-1} \wedge \left( H_t > H_{t-1} \right) \wedge \left( L_t < L_{t-1} \right) \wedge \left( C_t > O_t \right)'
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Bulkowski, T. N. (2008). Encyclopedia of Candlestick Charts."
+    implementation: factorbase.factors.candles:bullish_popgun
+    status: stable
+
+  - id: cs_bearish_popgun
+    name: Bearish Popgun
+    kind: signal
+    family: candlestick
+    summary: An inside bar followed by a down bar that engulfs its whole range.
+    description: >-
+      The mirror of the bullish popgun.
+    formulas:
+      - latex: 'Popgun_t = Inside_{t-1} \wedge \left( H_t > H_{t-1} \right) \wedge \left( L_t < L_{t-1} \right) \wedge \left( C_t < O_t \right)'
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Bulkowski, T. N. (2008). Encyclopedia of Candlestick Charts."
+    implementation: factorbase.factors.candles:bearish_popgun
+    status: stable
