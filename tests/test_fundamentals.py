@@ -711,3 +711,41 @@ def test_enterprise_value_adds_the_debt_of_the_selected_basis(
     result = compute("enterprise_value", accounts, market_value)
     expected = 2700.0 + rows["total_debt"] - rows["cash_and_equivalents"]
     assert np.allclose(result.to_numpy(), expected.to_numpy())
+
+
+def test_a_restated_period_is_rejected_by_name(
+    accounts: pd.DataFrame, market_value: pd.Series
+) -> None:
+    """Two rows with the same period end on the same basis are ambiguous: an
+    original filing and its amendment, and nothing in the frame says which is
+    the truth.
+
+    Picking one silently would decide for the caller, and letting pandas raise
+    gives them "cannot reindex on an axis with duplicate labels" with no date
+    and no factor name. So it raises here, saying which basis and which date.
+    """
+    from factorbase import compute
+    from factorbase.errors import AmbiguousPeriodError
+
+    annual = accounts[accounts["period"] == "annual"]
+    restated = pd.concat([accounts, annual.iloc[[-1]]]).sort_index(kind="stable")
+
+    with pytest.raises(AmbiguousPeriodError) as caught:
+        compute("market_capitalisation", restated, market_value)
+    message = str(caught.value)
+    assert "annual" in message
+    assert "2024-12-31" in message
+
+    with pytest.raises(AmbiguousPeriodError):
+        compute("net_margin", restated)
+
+
+def test_a_repeated_period_end_across_bases_is_fine(accounts: pd.DataFrame) -> None:
+    """Quarterly and TTM rows share their period ends by design. Only a repeat
+    within one basis is ambiguous."""
+    from factorbase import compute
+
+    quarterly = accounts[accounts["period"] == "quarterly"]
+    trailing = accounts[accounts["period"] == "ttm"]
+    assert quarterly.index.equals(trailing.index)
+    assert compute("net_margin", accounts, period="ttm").notna().any()

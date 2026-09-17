@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from .catalog import Catalog, default_catalog, load_catalog
 from .errors import (
+    AmbiguousPeriodError,
     CatalogError,
     FactorbaseError,
     InsufficientHistoryError,
@@ -31,6 +32,7 @@ from .schema import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "AmbiguousPeriodError",
     "Catalog",
     "CatalogError",
     "Companion",

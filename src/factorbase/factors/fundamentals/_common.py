@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from ...errors import MissingInputError
+from ...errors import AmbiguousPeriodError, MissingInputError
 
 PERIODS = ("annual", "quarterly", "ttm")
 
@@ -22,12 +22,22 @@ def rows_of(frame: pd.DataFrame, period: str, factor_id: str) -> pd.DataFrame:
     A frame with no rows of the requested basis returns empty rather than
     falling back to another basis. A quarterly figure presented as an annual
     one is off by a factor of four and nothing in the output would say so.
+
+    A period end appearing twice on the same basis raises. Quarterly and TTM
+    rows share their period ends by design and that is fine, because they are
+    different bases; a repeat inside one basis is an original filing and its
+    amendment, and choosing between them is not this package's decision.
     """
     if period not in PERIODS:
         raise ValueError(f"unknown period {period!r}; expected one of {PERIODS}")
     require_fields(frame, ("period",), factor_id)
-    selected = frame[frame["period"] == period]
-    return selected.sort_index()
+    selected = frame[frame["period"] == period].sort_index()
+    repeated = selected.index[selected.index.duplicated()]
+    if len(repeated):
+        raise AmbiguousPeriodError(
+            factor_id, period, tuple(str(d.date() if hasattr(d, "date") else d) for d in repeated)
+        )
+    return selected
 
 
 def safe_divide(numerator: pd.Series, denominator: pd.Series) -> pd.Series:

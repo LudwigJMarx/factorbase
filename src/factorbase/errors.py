@@ -73,3 +73,25 @@ class UnsupportedIndexError(FactorbaseError):
         self.factor_id = factor_id
         self.required = required
         self.given = given
+
+
+class AmbiguousPeriodError(FactorbaseError):
+    """The same reporting period appears twice on the same basis.
+
+    An original filing and its amendment produce exactly this, and nothing in
+    the frame says which one is the truth. Picking one would decide for the
+    caller; leaving it produces "cannot reindex on an axis with duplicate
+    labels" from deep inside pandas, with no date and no factor name attached.
+    Resolving a restatement is the data loader's job, and this error says which
+    date to resolve.
+    """
+
+    def __init__(self, factor_id: str, period: str, dates: tuple[str, ...]) -> None:
+        listed = ", ".join(dates[:5]) + (" and more" if len(dates) > 5 else "")
+        super().__init__(
+            f"factor {factor_id!r}: the {period} rows repeat these period ends: {listed}. "
+            "Keep one row per period before passing the frame."
+        )
+        self.factor_id = factor_id
+        self.period = period
+        self.dates = dates

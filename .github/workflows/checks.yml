@@ -70,3 +70,32 @@ jobs:
 
       - name: The catalogue renders to SQLite
         run: python3 scripts/build_db.py --out /tmp/factorbase.sqlite3
+
+  # pyproject declares a dependency floor. Nothing installs it: pip resolves to
+  # the newest release every time, so the floor is a guess until something runs
+  # against it. This job is that something. It found no difference on the day it
+  # was added, which is the point - a floor that has never been exercised cannot
+  # be said to hold.
+  floor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install at the declared minimum
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -e ".[dev]"
+          python3 -m pip install "pandas==2.1.4" "numpy<2" "PyYAML==6.0"
+
+      - name: Report what is actually installed
+        run: python3 -c "import pandas, numpy, yaml; print(pandas.__version__, numpy.__version__, yaml.__version__)"
+
+      - name: Tests at the floor
+        run: python3 -m pytest tests/
+
+      - name: The catalogue still loads at the floor
+        run: python3 scripts/check_catalog_wired.py
