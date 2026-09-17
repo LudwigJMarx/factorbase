@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from ..errors import UnsupportedIndexError
 from ._common import require_columns, simple_moving_average, wilder_smoothing
 
 
@@ -160,6 +161,10 @@ def historical_volatility_weekly(
     the catalogue rather than one with a parameter.
     """
     require_columns(prices, ("close",), "historical_volatility_weekly")
+    if not isinstance(prices.index, pd.DatetimeIndex):
+        raise UnsupportedIndexError(
+            "historical_volatility_weekly", "DatetimeIndex", type(prices.index).__name__
+        )
     weekly = prices["close"].resample("W-FRI").last().dropna()
     log_returns = pd.Series(np.log(weekly / weekly.shift(1)), index=weekly.index)
     deviation = log_returns.rolling(window=periods, min_periods=periods).std(ddof=1)

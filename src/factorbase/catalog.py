@@ -16,7 +16,17 @@ from typing import Any
 import yaml
 
 from .errors import CatalogError, UnknownFactorError
-from .schema import Direction, Factor, Formula, Kind, Parameter, Period, Status, Unit
+from .schema import (
+    Companion,
+    Direction,
+    Factor,
+    Formula,
+    Kind,
+    Parameter,
+    Period,
+    Status,
+    Unit,
+)
 
 _ENV_OVERRIDE = "FACTORBASE_CATALOG"
 
@@ -98,7 +108,7 @@ _FACTOR_KEYS = {
     "formulas",
     "parameters",
     "period",
-    "requires_benchmark",
+    "companions",
     "output_range",
     "aliases",
     "references",
@@ -143,7 +153,10 @@ def _factor_from(raw: dict[str, Any], source: str) -> Factor:
         formulas=formulas,
         parameters=parameters,
         period=_enum(Period, raw.get("period", "not_applicable"), source, factor_id, "period"),
-        requires_benchmark=bool(raw.get("requires_benchmark", False)),
+        companions=tuple(
+            _enum(Companion, name, source, factor_id, "companions")
+            for name in raw.get("companions", ())
+        ),
         output_range=(output_range[0], output_range[1]),
         aliases=tuple(raw.get("aliases", ())),
         references=tuple(raw.get("references", ())),

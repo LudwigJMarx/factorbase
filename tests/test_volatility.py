@@ -307,3 +307,48 @@ def test_average_drawdown_of_a_hand_walked_path() -> None:
     expected = (0.0 + 0.0 + (100.0 / 110.0 - 1.0) * 100.0 + (90.0 / 110.0 - 1.0) * 100.0) / 4.0
     assert expected == pytest.approx(-6.8182, abs=1e-4)
     assert average_drawdown(frame, periods=4).iloc[-1] == pytest.approx(expected)
+
+
+def test_weekly_volatility_says_what_index_it_needs() -> None:
+    """It is the only factor here that cannot work on a plain integer index,
+    because it resamples. Letting pandas raise leaves the caller with
+    "Only valid with DatetimeIndex" and no idea which of their factors said it.
+    """
+    from factorbase.errors import UnsupportedIndexError
+
+    frame = pd.DataFrame({"close": [100.0 + i for i in range(300)]})
+    with pytest.raises(UnsupportedIndexError) as caught:
+        historical_volatility_weekly(frame, periods=52)
+    assert "historical_volatility_weekly" in str(caught.value)
+    assert "DatetimeIndex" in str(caught.value)
+
+
+def test_every_other_factor_works_on_a_plain_integer_index() -> None:
+    """The requirement is one factor's, not the package's. If a second one
+    acquires it, this test says so rather than letting it be discovered by a
+    caller."""
+    from factorbase import compute, default_catalog
+    from factorbase.errors import UnsupportedIndexError
+    from factorbase.schema import Kind
+
+    count = 300
+    closes = pd.Series(100.0 + np.cumsum(np.random.default_rng(4).normal(0, 1.0, count)))
+    frame = pd.DataFrame(
+        {
+            "open": closes,
+            "high": closes + 1.0,
+            "low": closes - 1.0,
+            "close": closes,
+            "volume": pd.Series(1e6, index=closes.index),
+        }
+    )
+
+    needs_dates: list[str] = []
+    for factor in default_catalog():
+        if factor.kind not in (Kind.INDICATOR, Kind.SIGNAL) or factor.companions:
+            continue
+        try:
+            compute(factor.id, frame)
+        except UnsupportedIndexError:
+            needs_dates.append(factor.id)
+    assert needs_dates == ["historical_volatility_weekly"]

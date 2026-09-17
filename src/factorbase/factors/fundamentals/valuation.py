@@ -145,11 +145,25 @@ def free_cash_flow_yield(
     return result
 
 
-def enterprise_value(frame: pd.DataFrame, market: pd.Series) -> pd.Series:
-    """Market capitalisation plus total debt less cash. Catalogue id `enterprise_value`."""
+def enterprise_value(frame: pd.DataFrame, market: pd.Series, period: str = "annual") -> pd.Series:
+    """Market capitalisation plus total debt less cash.
+
+    Catalogue id `enterprise_value`.
+
+    Selects its reporting basis, for the same reason market capitalisation
+    does: a frame carrying annual, quarterly and TTM rows together has repeated
+    period ends, and the as-of join cannot reindex onto a duplicated index. The
+    enterprise multiples call `_enterprise_value_of` on rows they have already
+    selected.
+    """
     require_fields(frame, ("total_debt", "cash_and_equivalents"), "enterprise_value")
-    value = as_of(market, frame.index)
-    return value + frame["total_debt"] - frame["cash_and_equivalents"]
+    return _enterprise_value_of(rows_of(frame, period, "enterprise_value"), market)
+
+
+def _enterprise_value_of(rows: pd.DataFrame, market: pd.Series) -> pd.Series:
+    """Enterprise value for rows already narrowed to one reporting basis."""
+    value = as_of(market, rows.index)
+    return value + rows["total_debt"] - rows["cash_and_equivalents"]
 
 
 def _enterprise_multiple(
@@ -162,7 +176,7 @@ def _enterprise_multiple(
 ) -> pd.Series:
     require_fields(frame, (line,), factor_id)
     rows = rows_of(frame, period, factor_id)
-    value = enterprise_value(rows, market)
+    value = _enterprise_value_of(rows, market)
     return ratio_is_meaningless_when_negative(
         safe_divide(value, rows[line]), rows[line], allow_negative
     )
@@ -192,7 +206,7 @@ def ev_to_free_cash_flow(frame: pd.DataFrame, market: pd.Series, period: str = "
     """Enterprise value over free cash flow. Catalogue id `ev_to_free_cash_flow`."""
     rows = rows_of(frame, period, "ev_to_free_cash_flow")
     flow = free_cash_flow(rows)
-    value = enterprise_value(rows, market)
+    value = _enterprise_value_of(rows, market)
     return ratio_is_meaningless_when_negative(safe_divide(value, flow), flow, False)
 
 
@@ -210,7 +224,7 @@ def magic_formula_earnings_yield(
     """
     require_fields(frame, ("ebit",), "magic_formula_earnings_yield")
     rows = rows_of(frame, period, "magic_formula_earnings_yield")
-    return safe_divide(rows["ebit"], enterprise_value(rows, market)) * 100.0
+    return safe_divide(rows["ebit"], _enterprise_value_of(rows, market)) * 100.0
 
 
 def peg_ratio(

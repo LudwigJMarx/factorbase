@@ -57,3 +57,19 @@ class InsufficientHistoryError(FactorbaseError):
         self.factor_id = factor_id
         self.needed = needed
         self.given = given
+
+
+class UnsupportedIndexError(FactorbaseError):
+    """The frame's index cannot carry the operation the factor needs.
+
+    One factor in this package resamples, and resampling needs dates. Every
+    other one works on any index at all, which is why letting pandas raise here
+    was wrong: the caller got "Only valid with DatetimeIndex" with no way to
+    tell which of the fifty factors in their screen had said it.
+    """
+
+    def __init__(self, factor_id: str, required: str, given: str) -> None:
+        super().__init__(f"factor {factor_id!r} needs a {required}; the frame has a {given}")
+        self.factor_id = factor_id
+        self.required = required
+        self.given = given

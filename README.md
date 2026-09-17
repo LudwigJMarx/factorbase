@@ -101,7 +101,24 @@ factor = default_catalog()["bollinger_percent_b"]
 factor.inputs            # ('close',)
 factor.parameters        # periods=20, deviations=2.0
 factor.direction         # which end is the good end, when ranking
+factor.companions        # () - no second series needed
 factor.formulas[0].latex
+
+default_catalog()["price_to_earnings"].companions   # (Companion.MARKET,)
+default_catalog()["beta"].companions                # (Companion.BENCHMARK,)
+```
+
+`companions` is the catalogue's answer to "what else do I pass". Eight entries
+need a benchmark price series, fifteen need a market-capitalisation series, and
+a checker holds the field to the implementations' signatures in both
+directions.
+
+Or from a shell, without writing any Python:
+
+```bash
+factorbase list --kind fundamental --family valuation
+factorbase show rsi
+factorbase build-db --out factorbase.sqlite3
 ```
 
 A missing column raises `MissingInputError` naming the column. A history
@@ -117,7 +134,9 @@ directly. `scripts/build_db.py` renders it into a single SQLite file for
 anyone who would rather ask a question:
 
 ```bash
-python3 scripts/build_db.py --out factorbase.sqlite3
+factorbase build-db --out factorbase.sqlite3          # from an installed copy
+python3 scripts/build_db.py --out factorbase.sqlite3  # from a checkout
+
 sqlite3 factorbase.sqlite3 "select id, name, unit from factor where family = 'momentum'"
 sqlite3 factorbase.sqlite3 "select count(*) from factor_input where field = 'volume'"
 ```

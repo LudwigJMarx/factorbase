@@ -19,7 +19,19 @@ factors:
       valuation ratio cannot disagree about which market value they meant.
     formulas:
       - latex: 'MC_t = Market_{s}, \quad s = \max\{ u \le t : Market_u \text{ exists} \}'
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: >-
+          Which reported rows the dates are taken from. A frame carrying more
+          than one basis has repeated period ends, and the as-of join cannot
+          reindex onto them, so the basis is selected first here as everywhere
+          else.
     inputs: [market_cap]
+    companions: [market]
     unit: currency
     direction: undefined
     period: point_in_time
@@ -40,7 +52,15 @@ factors:
       compared across companies with different amounts of debt.
     formulas:
       - latex: 'EV_t = MC_t + Debt_t - Cash_t'
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the debt and cash are taken from.
     inputs: [market_cap, total_debt, cash_and_equivalents]
+    companions: [market]
     unit: currency
     direction: undefined
     period: point_in_time
@@ -82,6 +102,7 @@ factors:
         maximum: 100
         description: Mean over this many consecutive periods.
     inputs: [market_cap, net_income]
+    companions: [market]
     unit: ratio
     direction: lower
     period: ttm
@@ -119,6 +140,7 @@ factors:
         maximum: 100
         description: Mean over this many consecutive periods.
     inputs: [market_cap, total_equity]
+    companions: [market]
     unit: ratio
     direction: lower
     period: annual
@@ -142,6 +164,7 @@ factors:
       - latex: 'PS_t = \frac{MC_t}{Revenue_t}'
     parameters: *market_period
     inputs: [market_cap, revenue]
+    companions: [market]
     unit: ratio
     direction: lower
     period: ttm
@@ -167,6 +190,7 @@ factors:
       - latex: 'PFCF_t = \frac{MC_t}{FCF_t}, \qquad FCF_t > 0'
     parameters: *market_period
     inputs: [market_cap, operating_cash_flow, capital_expenditure, free_cash_flow]
+    companions: [market]
     unit: ratio
     direction: lower
     period: ttm
@@ -190,6 +214,7 @@ factors:
       - latex: 'EY_t = \frac{NetIncome_t}{MC_t} \cdot 100'
     parameters: *market_period
     inputs: [market_cap, net_income]
+    companions: [market]
     unit: percent
     direction: higher
     period: ttm
@@ -212,6 +237,7 @@ factors:
       - latex: 'FCFY_t = \frac{FCF_t}{MC_t} \cdot 100'
     parameters: *market_period
     inputs: [market_cap, operating_cash_flow, capital_expenditure, free_cash_flow]
+    companions: [market]
     unit: percent
     direction: higher
     period: ttm
@@ -241,6 +267,7 @@ factors:
         choices: [annual, quarterly, ttm]
         description: Which reported rows the factor is computed on.
     inputs: [market_cap, total_debt, cash_and_equivalents, ebit]
+    companions: [market]
     unit: ratio
     direction: lower
     period: ttm
@@ -263,6 +290,7 @@ factors:
       - latex: 'EVEBITDA_t = \frac{EV_t}{EBITDA_t}, \qquad EBITDA_t > 0'
     parameters: *market_period_only
     inputs: [market_cap, total_debt, cash_and_equivalents, ebitda]
+    companions: [market]
     unit: ratio
     direction: lower
     period: ttm
@@ -284,6 +312,7 @@ factors:
       - latex: 'EVS_t = \frac{EV_t}{Revenue_t}'
     parameters: *market_period_only
     inputs: [market_cap, total_debt, cash_and_equivalents, revenue]
+    companions: [market]
     unit: ratio
     direction: lower
     period: ttm
@@ -305,6 +334,7 @@ factors:
       - latex: 'EVFCF_t = \frac{EV_t}{FCF_t}, \qquad FCF_t > 0'
     parameters: *market_period_only
     inputs: [market_cap, total_debt, cash_and_equivalents, operating_cash_flow, capital_expenditure, free_cash_flow]
+    companions: [market]
     unit: ratio
     direction: lower
     period: ttm
@@ -328,6 +358,7 @@ factors:
       - latex: 'MFEY_t = \frac{EBIT_t}{EV_t} \cdot 100'
     parameters: *market_period_only
     inputs: [market_cap, total_debt, cash_and_equivalents, ebit]
+    companions: [market]
     unit: percent
     direction: higher
     period: ttm
@@ -368,6 +399,7 @@ factors:
         maximum: 100
         description: How many rows back the growth comparison point sits.
     inputs: [market_cap, net_income]
+    companions: [market]
     unit: ratio
     direction: lower
     period: ttm
@@ -410,6 +442,7 @@ factors:
         choices: [paid, declared]
         description: Dividends actually paid in the period, or announced for it.
     inputs: [market_cap, dividends_paid, dividend_per_share_paid, dividend_per_share_declared, shares_outstanding]
+    companions: [market]
     unit: percent
     direction: higher
     period: annual

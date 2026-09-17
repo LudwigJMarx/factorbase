@@ -654,3 +654,60 @@ def test_compound_growth_agrees_with_the_standard_library(accounts: pd.DataFrame
     ratios = [revenue[i] / revenue[i - 1] for i in range(len(revenue) - 5, len(revenue))]
     expected = (statistics.geometric_mean(ratios) - 1.0) * 100.0
     assert compound_annual_growth(accounts, years=5).iloc[-1] == pytest.approx(expected)
+
+
+def test_every_fundamental_runs_on_a_frame_holding_all_three_bases(
+    accounts: pd.DataFrame, market_value: pd.Series
+) -> None:
+    """The data contract says one frame carries annual, quarterly and TTM rows
+    side by side, so period ends repeat. A factor that does not select its
+    basis first meets a duplicated index and raises.
+
+    Two of them did: market capitalisation and enterprise value were the only
+    market-based entries that never called rows_of.
+    """
+    import inspect
+
+    from factorbase import compute, default_catalog
+    from factorbase.registry import resolve
+    from factorbase.schema import Kind
+
+    failures: list[str] = []
+    for factor in default_catalog().of_kind(Kind.FUNDAMENTAL):
+        assert factor.implementation is not None
+        positional = [
+            p
+            for p in inspect.signature(resolve(factor.implementation)).parameters.values()
+            if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+        ]
+        needs_market = len(positional) >= 2 and positional[1].default is inspect.Parameter.empty
+        try:
+            if needs_market:
+                compute(factor.id, accounts, market_value)
+            else:
+                compute(factor.id, accounts)
+        except Exception as error:  # noqa: BLE001 - the point is to collect them
+            failures.append(f"{factor.id}: {type(error).__name__}: {error}")
+
+    assert failures == []
+
+
+def test_market_capitalisation_returns_one_value_per_selected_period(
+    accounts: pd.DataFrame, market_value: pd.Series
+) -> None:
+    from factorbase import compute
+
+    annual = compute("market_capitalisation", accounts, market_value)
+    assert len(annual) == int((accounts["period"] == "annual").sum())
+    assert (annual == 2700.0).all()
+
+
+def test_enterprise_value_adds_the_debt_of_the_selected_basis(
+    accounts: pd.DataFrame, market_value: pd.Series
+) -> None:
+    from factorbase import compute
+
+    rows = accounts[accounts["period"] == "annual"]
+    result = compute("enterprise_value", accounts, market_value)
+    expected = 2700.0 + rows["total_debt"] - rows["cash_and_equivalents"]
+    assert np.allclose(result.to_numpy(), expected.to_numpy())

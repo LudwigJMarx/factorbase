@@ -168,6 +168,11 @@ factors:
       The weekly series is carried forward onto daily bars so it can be joined
       to daily factors. A reading therefore repeats within a week and changes
       only after a Friday close.
+
+      The only entry in this catalogue that requires the frame to be indexed by
+      date. Everything else works on any index. Given another one it raises
+      UnsupportedIndexError naming itself, rather than letting the resampler
+      complain about an index without saying which factor wanted it.
     status: stable
 
   - id: average_drawdown

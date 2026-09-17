@@ -62,7 +62,7 @@ factors:
       - latex: 'RS_t = \frac{C_t / B_t}{C_{t_0} / B_{t_0}} \cdot 100'
         note: B is the benchmark close, t0 the first bar where both exist.
     inputs: [close]
-    requires_benchmark: true
+    companions: [benchmark]
     unit: index
     direction: higher
     output_range: [0, null]
@@ -94,7 +94,7 @@ factors:
         maximum: 100000
         description: How many bars back the comparison point sits.
     inputs: [close]
-    requires_benchmark: true
+    companions: [benchmark]
     unit: percent
     direction: higher
     references:
@@ -129,7 +129,7 @@ factors:
         maximum: 100000
         description: Length of the estimation window.
     inputs: [close]
-    requires_benchmark: true
+    companions: [benchmark]
     unit: ratio
     direction: undefined
     references:
@@ -186,7 +186,7 @@ factors:
         maximum: 1.0
         description: Weight on the estimate; the remainder goes to 1.
     inputs: [close]
-    requires_benchmark: true
+    companions: [benchmark]
     unit: ratio
     direction: undefined
     references:
@@ -218,7 +218,7 @@ factors:
         maximum: 100000
         description: Length of the estimation window.
     inputs: [close]
-    requires_benchmark: true
+    companions: [benchmark]
     unit: ratio
     direction: undefined
     output_range: [-1, 1]
@@ -259,7 +259,7 @@ factors:
         maximum: 100000
         description: Below this many down bars in the window, the result is undefined.
     inputs: [close]
-    requires_benchmark: true
+    companions: [benchmark]
     unit: ratio
     direction: lower
     output_range: [-1, 1]
@@ -296,7 +296,7 @@ factors:
         maximum: 100000
         description: Below this many down bars in the window, the result is undefined.
     inputs: [close]
-    requires_benchmark: true
+    companions: [benchmark]
     unit: percent
     direction: higher
     references:
@@ -345,7 +345,7 @@ factors:
         maximum: 100.0
         description: Annual risk-free rate in percent, held constant across the window.
     inputs: [close]
-    requires_benchmark: true
+    companions: [benchmark]
     unit: percent
     direction: higher
     references:

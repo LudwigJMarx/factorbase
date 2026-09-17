@@ -13,15 +13,27 @@ from .errors import (
     InsufficientHistoryError,
     MissingInputError,
     UnknownFactorError,
+    UnsupportedIndexError,
 )
 from .registry import compute, implementation_of, resolve
-from .schema import Direction, Factor, Formula, Kind, Parameter, Period, Status, Unit
+from .schema import (
+    Companion,
+    Direction,
+    Factor,
+    Formula,
+    Kind,
+    Parameter,
+    Period,
+    Status,
+    Unit,
+)
 
 __version__ = "0.1.0"
 
 __all__ = [
     "Catalog",
     "CatalogError",
+    "Companion",
     "Direction",
     "Factor",
     "FactorbaseError",
@@ -34,6 +46,7 @@ __all__ = [
     "Status",
     "Unit",
     "UnknownFactorError",
+    "UnsupportedIndexError",
     "__version__",
     "compute",
     "default_catalog",

@@ -9,14 +9,23 @@ from .valuation import as_of
 from .valuation import free_cash_flow as _free_cash_flow
 
 
-def market_capitalisation(frame: pd.DataFrame, market: pd.Series) -> pd.Series:
-    """The market series read at each reporting date. Catalogue id `market_capitalisation`.
+def market_capitalisation(
+    frame: pd.DataFrame, market: pd.Series, period: str = "annual"
+) -> pd.Series:
+    """The market series read at each reporting date.
+
+    Catalogue id `market_capitalisation`.
 
     Present as a factor because size is a screening criterion in its own right,
     and because a universe filtered on it needs the same as-of join every other
     market-based factor here uses.
+
+    Selects its reporting basis like everything else. Reading the whole frame
+    instead meets the repeated period ends that annual, quarterly and TTM rows
+    produce together, and the as-of join cannot reindex onto a duplicated
+    index.
     """
-    return as_of(market, frame.index)
+    return as_of(market, rows_of(frame, period, "market_capitalisation").index)
 
 
 def revenue(frame: pd.DataFrame, period: str = "ttm") -> pd.Series:

@@ -16,6 +16,8 @@ wrong thing, or nothing.
 4. Every `stable` entry is named by at least one test file.
 5. Every id that appears in an `aliases` list is not also a factor id.
 6. Every entry whose unit is `index` declares its output range.
+7. Every companion series an entry declares matches a mandatory second
+   argument of its implementation, and the other way round.
 
 ── WHAT IT DOES NOT CHECK ──────────────────────────────────────────────────
 
@@ -23,6 +25,17 @@ Whether the implementation matches the formula. No checker can read LaTeX and
 compare it to code; that is what the tests in `tests/` are for. This script
 only confirms that a test exists and mentions the id, which is a weaker claim
 and is reported as such.
+
+── WHY CHECK 7 EXISTS ──────────────────────────────────────────────────────
+
+The catalogue's statement about second arguments used to be a single boolean
+named `requires_benchmark`. Fifteen valuation entries take a mandatory market
+series and reported false on it, so a caller reading the catalogue to find out
+what to pass got a TypeError. Check 7 compares the declaration against the
+signature in both directions, so the field cannot drift again.
+
+Composites are exempt: `composite_score` takes a mapping of components rather
+than a series, and no boolean or enum describes that usefully.
 
 ── WHY CHECK 6 EXISTS ──────────────────────────────────────────────────────
 
@@ -136,6 +149,25 @@ def main() -> int:
         for alias in factor.aliases:
             if alias in ids:
                 findings.append(f"{factor.id}: alias {alias!r} is also a factor id")
+
+        if factor.kind is not Kind.COMPOSITE and factor.implementation:
+            declared = len(factor.companions)
+            named = {p.id for p in factor.parameters}
+            signature = inspect.signature(resolve(factor.implementation))
+            required = [
+                p
+                for p in list(signature.parameters.values())[1:]
+                if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+                and p.default is inspect.Parameter.empty
+                and p.name not in named
+            ]
+            if len(required) != declared:
+                names = ", ".join(p.name for p in required) or "none"
+                listed = ", ".join(c.value for c in factor.companions) or "none"
+                findings.append(
+                    f"{factor.id}: declares companions [{listed}] but the implementation "
+                    f"requires [{names}]"
+                )
 
         if factor.unit is Unit.INDEX and factor.output_range == (None, None):
             findings.append(

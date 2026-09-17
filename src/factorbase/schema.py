@@ -59,6 +59,20 @@ class Direction(StrEnum):
     UNDEFINED = "undefined"
 
 
+class Companion(StrEnum):
+    """A second series a factor needs alongside the frame it is given.
+
+    A single boolean was not enough. It said "needs a benchmark" and fifteen
+    valuation entries, which need a market-capitalisation series and cannot run
+    without one, reported false - so the catalogue's only machine-readable
+    statement about second arguments was wrong for a quarter of the entries
+    that have one.
+    """
+
+    BENCHMARK = "benchmark"  # a reference price series, for the relative family
+    MARKET = "market"  # a market-capitalisation series, for the multiples
+
+
 class Period(StrEnum):
     """The reporting basis of a fundamental figure."""
 
@@ -139,7 +153,7 @@ class Factor:
     formulas: tuple[Formula, ...] = ()
     parameters: tuple[Parameter, ...] = ()
     period: Period = Period.NOT_APPLICABLE
-    requires_benchmark: bool = False
+    companions: tuple[Companion, ...] = ()
     output_range: tuple[float | None, float | None] = (None, None)
     aliases: tuple[str, ...] = ()
     references: tuple[str, ...] = ()
@@ -172,6 +186,8 @@ class Factor:
             raise CatalogError(source, f"{self.id}: stable entries need an implementation")
         if self.status is Status.STABLE and not self.formulas:
             raise CatalogError(source, f"{self.id}: stable entries need at least one formula")
+        if len(set(self.companions)) != len(self.companions):
+            raise CatalogError(source, f"{self.id}: a companion is listed twice")
         low, high = self.output_range
         if low is not None and high is not None and low > high:
             raise CatalogError(source, f"{self.id}: output range is inverted")
