@@ -1,0 +1,375 @@
+# Directional movement, Aroon, regression trend, and the trend template.
+
+factors:
+  - id: plus_di
+    name: Positive Directional Indicator
+    kind: indicator
+    family: trend
+    summary: Share of recent range travelled by rising highs.
+    description: >-
+      Counts how much of the bar-to-bar movement went into new highs, expressed
+      against the average true range so that it is comparable across
+      instruments. Only one of the two directional indicators can rise on a
+      given bar; an inside bar contributes to neither.
+    formulas:
+      - latex: '+DM_t = \begin{cases} H_t - H_{t-1} & \text{if } H_t - H_{t-1} > L_{t-1} - L_t \text{ and } H_t > H_{t-1} \\ 0 & \text{otherwise} \end{cases}'
+      - latex: '+DI_t = 100 \cdot \frac{\overline{+DM}_t}{\overline{TR}_t}'
+        note: Both averages are Wilder smoothings over n bars.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 14
+        minimum: 2
+        maximum: 100000
+        description: Length of the smoothing window.
+    inputs: [high, low, close]
+    unit: index
+    direction: higher
+    output_range: [0, 100]
+    references:
+      - "Wilder, J. W. (1978). New Concepts in Technical Trading Systems, ch. 4."
+    implementation: factorbase.factors.trend:plus_di
+    status: stable
+
+  - id: minus_di
+    name: Negative Directional Indicator
+    kind: indicator
+    family: trend
+    summary: Share of recent range travelled by falling lows.
+    description: >-
+      The mirror of the positive indicator. Its value on its own is less useful
+      than its distance from the positive one, which is what the DX and then the
+      ADX are built from.
+    formulas:
+      - latex: '-DM_t = \begin{cases} L_{t-1} - L_t & \text{if } L_{t-1} - L_t > H_t - H_{t-1} \text{ and } L_t < L_{t-1} \\ 0 & \text{otherwise} \end{cases}'
+      - latex: '-DI_t = 100 \cdot \frac{\overline{-DM}_t}{\overline{TR}_t}'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 14
+        minimum: 2
+        maximum: 100000
+        description: Length of the smoothing window.
+    inputs: [high, low, close]
+    unit: index
+    direction: lower
+    output_range: [0, 100]
+    references:
+      - "Wilder, J. W. (1978). New Concepts in Technical Trading Systems, ch. 4."
+    implementation: factorbase.factors.trend:minus_di
+    status: stable
+
+  - id: adx
+    name: Average Directional Index
+    kind: indicator
+    family: trend
+    summary: How one-sided the movement has been, regardless of direction.
+    description: >-
+      Measures trend strength without saying which way. A rising ADX during a
+      collapse reads exactly like a rising ADX during a rally; the sign lives in
+      the two directional indicators, not here.
+
+      It is smoothed twice, once on the directional movement and again on the
+      DX. That is why the reading lags the turn in price by roughly the period
+      length and why an ADX crossing 25 describes what has already happened.
+    formulas:
+      - latex: 'DX_t = 100 \cdot \frac{\left| +DI_t - (-DI_t) \right|}{+DI_t + (-DI_t)}'
+      - latex: 'ADX_t = \frac{(n-1) \, ADX_{t-1} + DX_t}{n}'
+        note: Wilder smoothing again, seeded with the mean of the first n DX values.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 14
+        minimum: 2
+        maximum: 100000
+        description: Length of both smoothing windows.
+    inputs: [high, low, close]
+    unit: index
+    direction: undefined
+    output_range: [0, 100]
+    references:
+      - "Wilder, J. W. (1978). New Concepts in Technical Trading Systems, ch. 4."
+    implementation: factorbase.factors.trend:adx
+    status: stable
+
+  - id: aroon_up
+    name: Aroon Up
+    kind: indicator
+    family: trend
+    summary: How recently the highest high of the window occurred, as a percentage.
+    description: >-
+      100 when today is the highest high of the window, falling towards 0 as
+      that high recedes into the past. It reads the timing of an extreme rather
+      than its size, which makes it insensitive to how violent the move was and
+      sensitive to whether it is still going on.
+    formulas:
+      - latex: 'AroonUp_t = \frac{n - 1 - b_t}{n - 1} \cdot 100'
+        note: b is the number of bars since the highest high inside the window of n bars.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 25
+        minimum: 2
+        maximum: 100000
+        description: Length of the window.
+    inputs: [high]
+    unit: index
+    direction: higher
+    output_range: [0, 100]
+    references:
+      - "Chande, T. S. (1995). The Time Price Oscillator. Technical Analysis of Stocks and Commodities 13(9)."
+    implementation: factorbase.factors.trend:aroon_up
+    notes: >-
+      Measured over a window of n bars, so a fresh high reads 100 and the oldest
+      bar in the window reads 0. Implementations that use n+1 bars produce
+      slightly different intermediate values.
+    status: stable
+
+  - id: aroon_down
+    name: Aroon Down
+    kind: indicator
+    family: trend
+    summary: How recently the lowest low of the window occurred, as a percentage.
+    description: >-
+      The mirror of Aroon Up. High readings mean the low is fresh, which is a
+      bearish condition, so the direction field says lower is better.
+    formulas:
+      - latex: 'AroonDown_t = \frac{n - 1 - b_t}{n - 1} \cdot 100'
+        note: b is the number of bars since the lowest low inside the window.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 25
+        minimum: 2
+        maximum: 100000
+        description: Length of the window.
+    inputs: [low]
+    unit: index
+    direction: lower
+    output_range: [0, 100]
+    references:
+      - "Chande, T. S. (1995). The Time Price Oscillator. Technical Analysis of Stocks and Commodities 13(9)."
+    implementation: factorbase.factors.trend:aroon_down
+    status: stable
+
+  - id: aroon_oscillator
+    name: Aroon Oscillator
+    kind: indicator
+    family: trend
+    summary: Aroon Up minus Aroon Down.
+    description: >-
+      One line instead of two, running from -100 to +100. Positive means the
+      recent high is fresher than the recent low. It loses the information that
+      both extremes are old, which is the signature of a range and is visible
+      only in the two lines separately.
+    formulas:
+      - latex: 'AroonOsc_t = AroonUp_t - AroonDown_t'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 25
+        minimum: 2
+        maximum: 100000
+        description: Length of the window.
+    inputs: [high, low]
+    unit: index
+    direction: higher
+    output_range: [-100, 100]
+    references:
+      - "Chande, T. S. (1995). The Time Price Oscillator. Technical Analysis of Stocks and Commodities 13(9)."
+    implementation: factorbase.factors.trend:aroon_oscillator
+    status: stable
+
+  - id: regression_slope_annualised
+    name: Annualised Regression Slope
+    kind: indicator
+    family: trend
+    summary: Compounding rate implied by a least-squares line through log prices.
+    description: >-
+      Fits a straight line to the logarithm of the close over n bars and reports
+      its slope as an annual rate. Running the regression on log prices rather
+      than prices is what makes the slope a growth rate instead of a currency
+      amount, and therefore comparable across a universe.
+
+      Annualising compounds the daily rate; multiplying it by the number of
+      trading days is the common shortcut and overstates any slope worth
+      noticing.
+    formulas:
+      - latex: 'y_i = \ln C_{t-n+1+i}, \qquad i = 0 \dots n-1'
+      - latex: 'b = \frac{\sum_i (i - \bar{\imath})(y_i - \bar{y})}{\sum_i (i - \bar{\imath})^2}'
+      - latex: 'g = \left( e^{b \cdot T} - 1 \right) \cdot 100'
+        note: T is trading days per year. Compounding, not multiplication.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 90
+        minimum: 3
+        maximum: 100000
+        description: Number of bars the line is fitted through.
+      - id: trading_days
+        name: Trading days per year
+        dtype: int
+        default: 250
+        minimum: 1
+        maximum: 366
+        description: Annualisation factor.
+    inputs: [close]
+    unit: percent
+    direction: higher
+    aliases: [linear_regression_slope]
+    references:
+      - "Clenow, A. (2015). Stocks on the Move, ch. 6."
+    implementation: factorbase.factors.trend:regression_slope_annualised
+    status: stable
+
+  - id: trend_stability
+    name: Trend Stability
+    kind: indicator
+    family: trend
+    summary: Coefficient of determination of the log-price regression, 0 to 1.
+    description: >-
+      How well a straight line describes the last n bars. Near 1 the instrument
+      has moved in something close to a straight line in log space; near 0 it
+      has gone nowhere in particular. It says nothing about direction or speed:
+      a steady decline scores as high as a steady advance.
+    formulas:
+      - latex: 'R^2 = 1 - \frac{\sum_i \left( y_i - \hat{y}_i \right)^2}{\sum_i \left( y_i - \bar{y} \right)^2}'
+        note: y is the log close, y-hat the fitted line.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 90
+        minimum: 3
+        maximum: 100000
+        description: Number of bars the line is fitted through.
+    inputs: [close]
+    unit: ratio
+    direction: higher
+    output_range: [0, 1]
+    aliases: [r_squared]
+    references:
+      - "Clenow, A. (2015). Stocks on the Move, ch. 6."
+    implementation: factorbase.factors.trend:trend_stability
+    status: stable
+
+  - id: adjusted_slope
+    name: Adjusted Slope
+    kind: indicator
+    family: trend
+    summary: Annualised regression slope multiplied by its coefficient of determination.
+    description: >-
+      Combines how fast with how steadily. Between two instruments whose fitted
+      slopes are equal, the one whose path hugged the line ranks ahead. That is
+      the intended effect and it holds: noise around a given slope lowers R
+      squared and so lowers the product.
+
+      What it does not do is penalise a single large jump, and the arithmetic
+      says so plainly. Over a 90-bar window, an even climb of 80 percent fits a
+      line with slope 0.00660 and R squared 1.00, giving 0.00660. The same 80
+      percent arriving as one step in the middle of the window fits a steeper
+      line, slope 0.00980, with R squared 0.75, giving 0.00735. The step ranks
+      ahead. Anyone reaching for this factor to screen out gap risk is reaching
+      for the wrong one.
+    formulas:
+      - latex: 'AS_t = g_t \cdot R^2_t'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 90
+        minimum: 3
+        maximum: 100000
+        description: Number of bars the line is fitted through.
+      - id: trading_days
+        name: Trading days per year
+        dtype: int
+        default: 250
+        minimum: 1
+        maximum: 366
+        description: Annualisation factor.
+    inputs: [close]
+    unit: percent
+    direction: higher
+    references:
+      - "Clenow, A. (2015). Stocks on the Move, ch. 6."
+    implementation: factorbase.factors.trend:adjusted_slope
+    notes: >-
+      A step inside the window raises the fitted slope by more than the fall in
+      R squared takes away. Use a gap or range filter for that, not this.
+    status: stable
+
+  - id: trend_template_score
+    name: Trend Template Score
+    kind: indicator
+    family: trend
+    summary: How many of the seven price conditions of the trend template hold, 0 to 7.
+    description: >-
+      A count rather than a verdict. The template is usually applied as a gate,
+      all conditions or nothing, which throws away the difference between an
+      instrument failing one condition and one failing five. Scoring it keeps
+      that difference and makes the template rankable.
+
+      The published template has an eighth condition, on relative strength
+      against the wider market. It is not counted here because it needs a
+      universe rather than a price series; the factor that supplies it lives in
+      the relative-strength family.
+
+      The score is undefined until every average in it exists, which takes a
+      year of history. Treating an undefined condition as failed would report a
+      low score for an instrument that has merely not traded long enough, and
+      that reading is indistinguishable from a genuine one.
+    formulas:
+      - latex: 'c_1 = C_t > SMA_t(150) \;\wedge\; C_t > SMA_t(200)'
+      - latex: 'c_2 = SMA_t(150) > SMA_t(200)'
+      - latex: 'c_3 = SMA_t(200) > SMA_{t-m}(200)'
+        note: m defaults to 22 bars, about one month.
+      - latex: 'c_4 = SMA_t(50) > SMA_t(150) \;\wedge\; SMA_t(50) > SMA_t(200)'
+      - latex: 'c_5 = C_t > SMA_t(50)'
+      - latex: 'c_6 = C_t \ge LL_t(52w) \cdot \left(1 + \frac{p_{low}}{100}\right)'
+      - latex: 'c_7 = C_t \ge HH_t(52w) \cdot \left(1 - \frac{p_{high}}{100}\right)'
+      - latex: 'Score_t = \sum_{k=1}^{7} \mathbb{1}[c_k]'
+    parameters:
+      - id: low_margin
+        name: Margin above the 52-week low
+        dtype: float
+        default: 25.0
+        minimum: 0.0
+        maximum: 1000.0
+        description: How far above the low the close must sit, in percent.
+      - id: high_margin
+        name: Margin below the 52-week high
+        dtype: float
+        default: 25.0
+        minimum: 0.0
+        maximum: 100.0
+        description: How far below the high the close may sit, in percent.
+      - id: ma200_rising_days
+        name: Rising-average lookback
+        dtype: int
+        default: 22
+        minimum: 1
+        maximum: 100000
+        description: Over how many bars the 200-day average must have risen.
+      - id: weeks
+        name: Weeks in the range window
+        dtype: int
+        default: 52
+        minimum: 1
+        maximum: 520
+        description: Length of the high and low window, in weeks of five bars.
+    inputs: [close]
+    unit: count
+    direction: higher
+    output_range: [0, 7]
+    references:
+      - "Minervini, M. (2013). Trade Like a Stock Market Wizard, ch. 5."
+    implementation: factorbase.factors.trend:trend_template_score
+    status: stable
