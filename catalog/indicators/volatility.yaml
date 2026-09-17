@@ -1,0 +1,410 @@
+# Range, dispersion, drawdown and the Bollinger family.
+
+factors:
+  - id: true_range
+    name: True Range
+    kind: indicator
+    family: volatility
+    summary: The bar's range, extended to cover any gap from the previous close.
+    description: >-
+      The plain high-low range misses movement that happened while the market
+      was shut. Wilder's fix is to take the widest of three spans, two of which
+      reach back to yesterday's close. On the first bar there is no previous
+      close, so the plain range is used; discarding that bar instead would shift
+      every subsequent average by one observation.
+    formulas:
+      - latex: 'TR_t = \max\left( H_t - L_t,\; \left| H_t - C_{t-1} \right|,\; \left| L_t - C_{t-1} \right| \right)'
+    inputs: [high, low, close]
+    unit: currency
+    direction: undefined
+    output_range: [0, null]
+    references:
+      - "Wilder, J. W. (1978). New Concepts in Technical Trading Systems, ch. 3."
+    implementation: factorbase.factors.volatility:true_range
+    status: stable
+
+  - id: atr
+    name: Average True Range
+    kind: indicator
+    family: volatility
+    summary: True range, smoothed with Wilder's constant.
+    description: >-
+      How far the instrument typically travels in a bar, gaps included. Used for
+      position sizing and stop distance far more than as a signal, because it
+      has no direction: a violent fall and a violent rally read the same.
+
+      The smoothing constant is 1/n, not 2/(n+1). An ATR(14) built on an
+      ordinary 14-period exponential average is a faster series than Wilder's,
+      and the two are frequently compared as though they were the same.
+    formulas:
+      - latex: 'ATR_t = \frac{(n-1) \, ATR_{t-1} + TR_t}{n}'
+        note: Seeded with the simple mean of the first n true ranges.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 14
+        minimum: 1
+        maximum: 100000
+        description: Length of the smoothing window.
+    inputs: [high, low, close]
+    unit: currency
+    direction: undefined
+    output_range: [0, null]
+    aliases: [average_true_range]
+    references:
+      - "Wilder, J. W. (1978). New Concepts in Technical Trading Systems, ch. 3."
+    implementation: factorbase.factors.volatility:atr
+    status: stable
+
+  - id: atr_percent
+    name: Average True Range, Relative
+    kind: indicator
+    family: volatility
+    summary: ATR as a percentage of the close.
+    description: >-
+      The same measure divided by the price, which is what makes it comparable
+      across a universe. A two-euro average range is wide for a ten-euro stock
+      and negligible for a thousand-euro one; ranking on raw ATR ranks by price
+      level, not by volatility.
+    formulas:
+      - latex: 'ATR\%_t = \frac{ATR_t(n)}{C_t} \cdot 100'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 14
+        minimum: 1
+        maximum: 100000
+        description: Length of the smoothing window.
+    inputs: [high, low, close]
+    unit: percent
+    direction: undefined
+    output_range: [0, null]
+    references:
+      - "Wilder, J. W. (1978). New Concepts in Technical Trading Systems, ch. 3."
+    implementation: factorbase.factors.volatility:atr_percent
+    status: stable
+
+  - id: historical_volatility
+    name: Historical Volatility (Daily)
+    kind: indicator
+    family: volatility
+    summary: Annualised standard deviation of daily logarithmic returns.
+    description: >-
+      The textbook volatility figure, and the one an option model expects.
+      Logarithmic returns rather than simple ones, because they add across time,
+      which is the assumption behind annualising with the square root of the
+      number of periods. The sample standard deviation is used, dividing by
+      n-1.
+    formulas:
+      - latex: 'r_t = \ln \frac{C_t}{C_{t-1}}'
+      - latex: '\sigma_t = \sqrt{ \frac{1}{n-1} \sum_{i=0}^{n-1} \left( r_{t-i} - \bar{r} \right)^2 }'
+      - latex: '\sigma^{ann}_t = \sigma_t \sqrt{T} \cdot 100'
+        note: T is the number of trading periods in a year.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 250
+        minimum: 2
+        maximum: 100000
+        description: Number of daily returns in the window.
+      - id: trading_days
+        name: Trading days per year
+        dtype: int
+        default: 250
+        minimum: 1
+        maximum: 366
+        description: Annualisation factor.
+    inputs: [close]
+    unit: percent
+    direction: undefined
+    output_range: [0, null]
+    aliases: [volatility_daily]
+    references:
+      - "Hull, J. C. (2018). Options, Futures, and Other Derivatives, 10th ed., ch. 15."
+    implementation: factorbase.factors.volatility:historical_volatility
+    status: stable
+
+  - id: historical_volatility_weekly
+    name: Historical Volatility (Weekly)
+    kind: indicator
+    family: volatility
+    summary: Annualised standard deviation of weekly logarithmic returns.
+    description: >-
+      Sampled Friday to Friday and annualised over 52 periods. Not a smoothed
+      version of the daily figure: it is blind to everything inside the week, so
+      an instrument that swings hard mid-week and closes each Friday near the
+      last one reads calm here and volatile daily. Both are in the catalogue for
+      that reason rather than as one entry with a switch.
+    formulas:
+      - latex: 'r^{w}_k = \ln \frac{C^{Fri}_k}{C^{Fri}_{k-1}}'
+      - latex: '\sigma^{ann}_t = \sqrt{ \frac{1}{n-1} \sum_{i=0}^{n-1} \left( r^{w}_{k-i} - \bar{r}^{w} \right)^2 } \cdot \sqrt{52} \cdot 100'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 52
+        minimum: 2
+        maximum: 100000
+        description: Number of weekly returns in the window.
+      - id: weeks_per_year
+        name: Weeks per year
+        dtype: int
+        default: 52
+        minimum: 1
+        maximum: 53
+        description: Annualisation factor.
+    inputs: [close]
+    unit: percent
+    direction: undefined
+    output_range: [0, null]
+    aliases: [volatility_weekly]
+    references:
+      - "Hull, J. C. (2018). Options, Futures, and Other Derivatives, 10th ed., ch. 15."
+    implementation: factorbase.factors.volatility:historical_volatility_weekly
+    notes: >-
+      The weekly series is carried forward onto daily bars so it can be joined
+      to daily factors. A reading therefore repeats within a week and changes
+      only after a Friday close.
+    status: stable
+
+  - id: average_drawdown
+    name: Average Drawdown
+    kind: indicator
+    family: volatility
+    summary: Mean distance below the running peak over the window, in percent.
+    description: >-
+      Not the maximum drawdown. The maximum is one bad day out of the whole
+      window; the mean says how far underwater the instrument sat on an average
+      day, which is the quantity a holder actually experiences. Two instruments
+      with the same worst fall can differ by a factor of three here.
+    formulas:
+      - latex: 'P_t = \max_{0 \le i < n} C_{t-i}'
+        note: The running peak inside the window.
+      - latex: 'DD_t = \left( \frac{C_t}{P_t} - 1 \right) \cdot 100'
+      - latex: '\overline{DD}_t = \frac{1}{n} \sum_{i=0}^{n-1} DD_{t-i}'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 250
+        minimum: 2
+        maximum: 100000
+        description: Length of the window.
+    inputs: [close]
+    unit: percent
+    direction: higher
+    output_range: [null, 0]
+    implementation: factorbase.factors.volatility:average_drawdown
+    references:
+      - "Bacon, C. R. (2008). Practical Portfolio Performance Measurement and Attribution, 2nd ed., ch. 4."
+    status: stable
+
+  - id: max_drawdown
+    name: Maximum Drawdown
+    kind: indicator
+    family: volatility
+    summary: Worst peak-to-trough fall inside the window, in percent.
+    description: >-
+      The single worst stretch in the window, as a negative number. It is a
+      minimum over a path, not an average, so it does not shrink when the rest
+      of the window is calm, and one bad week fixes the reading for as long as
+      it stays in the window.
+    formulas:
+      - latex: 'MDD_t = \min_{0 \le j < n} \left( \frac{C_{t-j}}{\max_{j \le i < n} C_{t-i}} - 1 \right) \cdot 100'
+        note: The inner maximum runs over the bars at or before the bar being measured.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 250
+        minimum: 2
+        maximum: 100000
+        description: Length of the window.
+    inputs: [close]
+    unit: percent
+    direction: higher
+    output_range: [null, 0]
+    implementation: factorbase.factors.volatility:max_drawdown
+    references:
+      - "Bacon, C. R. (2008). Practical Portfolio Performance Measurement and Attribution, 2nd ed., ch. 4."
+    status: stable
+
+  - id: trading_range
+    name: Trading Range
+    kind: indicator
+    family: volatility
+    summary: Highest high to lowest low over the window, as a percentage of the low.
+    description: >-
+      A compression measure. A narrow reading says the instrument has gone
+      nowhere for n bars, which is the precondition every breakout method looks
+      for and the state in which a breakout is worth noticing. Unlike ATR it
+      ignores the path: a straight line from low to high and a series of violent
+      reversals between the same two prices read identically.
+    formulas:
+      - latex: 'TR^{\%}_t = \frac{HH_t(n) - LL_t(n)}{LL_t(n)} \cdot 100'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 2
+        maximum: 100000
+        description: Length of the window.
+    inputs: [high, low]
+    unit: percent
+    direction: undefined
+    output_range: [0, null]
+    implementation: factorbase.factors.volatility:trading_range
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 12."
+    status: stable
+
+  - id: bollinger_percent_b
+    name: Percent B
+    kind: indicator
+    family: volatility
+    summary: Where the close sits between the Bollinger bands. 0 at the lower, 1 at the upper.
+    description: >-
+      Turns the bands into a number. Readings outside 0 to 1 are normal and
+      informative rather than errors: they say the close is beyond the band,
+      which in a trend is where it spends much of its time.
+
+      The band spread uses the population standard deviation, dividing by n.
+      Bollinger specified it that way and charting packages draw it that way;
+      the sample deviation widens the bands slightly and is a standing source of
+      two implementations disagreeing in the third decimal.
+    formulas:
+      - latex: 'M_t = SMA_t(C, n), \qquad s_t = \sqrt{ \frac{1}{n} \sum_{i=0}^{n-1} \left( C_{t-i} - M_t \right)^2 }'
+      - latex: 'U_t = M_t + k s_t, \qquad L_t = M_t - k s_t'
+      - latex: '\%B_t = \frac{C_t - L_t}{U_t - L_t}'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 2
+        maximum: 100000
+        description: Length of the window for the average and the deviation.
+      - id: deviations
+        name: Deviations
+        dtype: float
+        default: 2.0
+        minimum: 0.1
+        maximum: 10.0
+        description: How many standard deviations the bands sit from the middle.
+    inputs: [close]
+    unit: ratio
+    direction: undefined
+    aliases: [percent_b]
+    references:
+      - "Bollinger, J. (2001). Bollinger on Bollinger Bands, ch. 6."
+    implementation: factorbase.factors.volatility:bollinger_percent_b
+    status: stable
+
+  - id: bollinger_band_width
+    name: Bollinger Band Width
+    kind: indicator
+    family: volatility
+    summary: Distance between the bands as a percentage of the middle band.
+    description: >-
+      The measure behind the squeeze: band width at a multi-month low says
+      volatility has contracted, which historically precedes expansion more
+      often than continued quiet. It says nothing about the direction of the
+      expansion, and reading it as bullish is the standard misuse.
+    formulas:
+      - latex: 'BW_t = \frac{U_t - L_t}{M_t} \cdot 100'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 2
+        maximum: 100000
+        description: Length of the window.
+      - id: deviations
+        name: Deviations
+        dtype: float
+        default: 2.0
+        minimum: 0.1
+        maximum: 10.0
+        description: How many standard deviations the bands sit from the middle.
+    inputs: [close]
+    unit: percent
+    direction: undefined
+    output_range: [0, null]
+    aliases: [bollinger_width]
+    references:
+      - "Bollinger, J. (2001). Bollinger on Bollinger Bands, ch. 7."
+    implementation: factorbase.factors.volatility:bollinger_band_width
+    status: stable
+
+  - id: distance_to_upper_band
+    name: Distance to Upper Bollinger Band
+    kind: indicator
+    family: volatility
+    summary: Gap from the close up to the upper band, in percent of the close.
+    description: >-
+      How much room is left before the close reaches the upper band. Negative
+      once the close is above it. Expressed against the close rather than
+      against the band so that the reading answers the question a position
+      holder asks: how far can this move before it is extended.
+    formulas:
+      - latex: 'D^{up}_t = \frac{U_t - C_t}{C_t} \cdot 100'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 2
+        maximum: 100000
+        description: Length of the window.
+      - id: deviations
+        name: Deviations
+        dtype: float
+        default: 2.0
+        minimum: 0.1
+        maximum: 10.0
+        description: How many standard deviations the bands sit from the middle.
+    inputs: [close]
+    unit: percent
+    direction: undefined
+    references:
+      - "Bollinger, J. (2001). Bollinger on Bollinger Bands, ch. 6."
+    implementation: factorbase.factors.volatility:distance_to_upper_band
+    status: stable
+
+  - id: distance_to_lower_band
+    name: Distance to Lower Bollinger Band
+    kind: indicator
+    family: volatility
+    summary: Gap from the close down to the lower band, in percent of the close.
+    description: >-
+      The mirror of the previous entry. Negative once the close is below the
+      lower band.
+    formulas:
+      - latex: 'D^{low}_t = \frac{C_t - L_t}{C_t} \cdot 100'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 2
+        maximum: 100000
+        description: Length of the window.
+      - id: deviations
+        name: Deviations
+        dtype: float
+        default: 2.0
+        minimum: 0.1
+        maximum: 10.0
+        description: How many standard deviations the bands sit from the middle.
+    inputs: [close]
+    unit: percent
+    direction: undefined
+    references:
+      - "Bollinger, J. (2001). Bollinger on Bollinger Bands, ch. 6."
+    implementation: factorbase.factors.volatility:distance_to_lower_band
+    status: stable

@@ -146,3 +146,22 @@ def distance_to_lower_band(
     """Percentage gap from the close down to the lower band; negative once below it."""
     bands = bollinger_bands(prices, periods, deviations)
     return (prices["close"] - bands["lower"]) / prices["close"] * 100.0
+
+
+def historical_volatility_weekly(
+    prices: pd.DataFrame, periods: int = 52, weeks_per_year: int = 52
+) -> pd.Series:
+    """Annualised standard deviation of weekly log returns, aligned back to daily bars.
+
+    Weekly sampling is not a smoothed version of the daily figure. It ignores
+    everything that happens inside the week, so an instrument that swings hard
+    from Monday to Thursday and closes each Friday near the last one reads as
+    calm here and as volatile daily. That difference is the reason both are in
+    the catalogue rather than one with a parameter.
+    """
+    require_columns(prices, ("close",), "historical_volatility_weekly")
+    weekly = prices["close"].resample("W-FRI").last().dropna()
+    log_returns = np.log(weekly / weekly.shift(1))
+    deviation = log_returns.rolling(window=periods, min_periods=periods).std(ddof=1)
+    annualised = deviation * np.sqrt(weeks_per_year) * 100.0
+    return annualised.reindex(prices.index, method="ffill")
