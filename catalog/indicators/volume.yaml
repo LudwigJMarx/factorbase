@@ -1,0 +1,217 @@
+# Volume-weighted measures: accumulation, money flow, turnover.
+
+factors:
+  - id: close_location_value
+    name: Close Location Value
+    kind: indicator
+    family: volume
+    summary: Where the close finished inside its own bar, from -1 at the low to +1 at the high.
+    description: >-
+      The building block the accumulation line is made of. It asks a narrow
+      question: given everywhere the price went today, where did it stop. A bar
+      with no range has no location to report and reads zero, which is no
+      information rather than infinite information.
+    formulas:
+      - latex: 'CLV_t = \frac{(C_t - L_t) - (H_t - C_t)}{H_t - L_t}'
+    inputs: [high, low, close]
+    unit: ratio
+    direction: higher
+    output_range: [-1, 1]
+    references:
+      - "Chaikin, M., in Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 16."
+    implementation: factorbase.factors.volume:close_location_value
+    status: stable
+
+  - id: accumulation_distribution_line
+    name: Accumulation/Distribution Line
+    kind: indicator
+    family: volume
+    summary: Running total of volume signed by where the close sat in its bar.
+    description: >-
+      Adds up each bar's volume, multiplied by how high in its range the bar
+      closed. The reading is a cumulative sum from the first bar of whatever
+      history was loaded, so its level is arbitrary and only its direction
+      means anything. Two instruments cannot be compared on it, and neither can
+      the same instrument loaded over two different windows.
+    formulas:
+      - latex: 'ADL_t = ADL_{t-1} + CLV_t \cdot V_t'
+    inputs: [high, low, close, volume]
+    unit: count
+    direction: higher
+    aliases: [adl]
+    references:
+      - "Chaikin, M., in Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 16."
+    implementation: factorbase.factors.volume:accumulation_distribution_line
+    notes: >-
+      Level depends on where the loaded history starts. Rank on the Chaikin
+      oscillator instead, which differences the level away.
+    status: stable
+
+  - id: chaikin_oscillator
+    name: Chaikin Oscillator
+    kind: indicator
+    family: volume
+    summary: Fast minus slow exponential average of the accumulation line.
+    description: >-
+      Differencing two averages of the accumulation line removes the arbitrary
+      starting level the line carries, which is what makes this comparable
+      across instruments where the line itself is not. What remains is whether
+      accumulation has been speeding up or slowing down.
+    formulas:
+      - latex: 'CO_t = EMA_t(ADL, n_{fast}) - EMA_t(ADL, n_{slow})'
+    parameters:
+      - id: fast_periods
+        name: Fast periods
+        dtype: int
+        default: 3
+        minimum: 1
+        maximum: 100000
+        description: Period of the faster average.
+      - id: slow_periods
+        name: Slow periods
+        dtype: int
+        default: 10
+        minimum: 1
+        maximum: 100000
+        description: Period of the slower average.
+    inputs: [high, low, close, volume]
+    unit: count
+    direction: higher
+    references:
+      - "Chaikin, M., in Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 16."
+    implementation: factorbase.factors.volume:chaikin_oscillator
+    status: stable
+
+  - id: money_flow_index
+    name: Money Flow Index
+    kind: indicator
+    family: volume
+    summary: RSI on the typical price, with each bar weighted by the money traded.
+    description: >-
+      The same construction as the RSI, except that each bar counts in
+      proportion to the money that changed hands rather than equally. An
+      advance on thin volume and one on heavy volume read identically on RSI
+      and differ here, which is the whole reason to prefer it.
+
+      Two bars count on neither side: one whose typical price is unchanged, and
+      the first bar of the frame, which has no predecessor. Implementations
+      that test only for "not rising" lump both into the negative side and read
+      low on thin instruments.
+    formulas:
+      - latex: 'MF_t = TP_t \cdot V_t'
+      - latex: 'MF^{+}_t = \sum_{i=0}^{n-1} MF_{t-i} \cdot \mathbb{1}[TP_{t-i} > TP_{t-i-1}]'
+      - latex: 'MF^{-}_t = \sum_{i=0}^{n-1} MF_{t-i} \cdot \mathbb{1}[TP_{t-i} < TP_{t-i-1}]'
+      - latex: 'MFI_t = 100 \cdot \frac{MF^{+}_t}{MF^{+}_t + MF^{-}_t}'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 14
+        minimum: 2
+        maximum: 100000
+        description: Length of the window.
+    inputs: [high, low, close, volume]
+    unit: index
+    direction: undefined
+    output_range: [0, 100]
+    aliases: [mfi]
+    references:
+      - "Quong, G. and Soudack, A. (1989). Volume-Weighted RSI. Technical Analysis of Stocks and Commodities 7(3)."
+    implementation: factorbase.factors.volume:money_flow_index
+    status: stable
+
+  - id: average_turnover
+    name: Average Turnover
+    kind: indicator
+    family: volume
+    summary: Mean of close times volume over the window, in currency.
+    description: >-
+      The figure a liquidity filter should use. A share count means nothing
+      across instruments: a million shares of a one-euro stock and a million of
+      a five-hundred-euro one are different markets by three orders of
+      magnitude. Multiplying by price makes the comparison valid.
+    formulas:
+      - latex: 'T_t = \frac{1}{n} \sum_{i=0}^{n-1} C_{t-i} \cdot V_{t-i}'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 1
+        maximum: 100000
+        description: Length of the window.
+    inputs: [close, volume]
+    unit: currency
+    direction: higher
+    output_range: [0, null]
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 16."
+    implementation: factorbase.factors.volume:average_turnover
+    status: stable
+
+  - id: relative_volume
+    name: Relative Volume
+    kind: indicator
+    family: volume
+    summary: Today's volume as a multiple of its own recent average.
+    description: >-
+      A reading of 3 says today traded three times the usual. The average
+      excludes the current bar on purpose: including it lets the spike dampen
+      its own measurement, by up to a twentieth of its size at the default
+      window, which is exactly the wrong direction for a factor whose job is to
+      find spikes.
+    formulas:
+      - latex: 'RV_t = \frac{V_t}{\frac{1}{n} \sum_{i=1}^{n} V_{t-i}}'
+        note: The sum starts at i=1, so the current bar is not in its own average.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 1
+        maximum: 100000
+        description: Length of the comparison window.
+    inputs: [volume]
+    unit: ratio
+    direction: higher
+    output_range: [0, null]
+    aliases: [volume_spike]
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 16."
+    implementation: factorbase.factors.volume:relative_volume
+    status: stable
+
+  - id: volume_trend
+    name: Volume Trend
+    kind: indicator
+    family: volume
+    summary: Percentage change in average volume over the lookback.
+    description: >-
+      Whether participation is growing or draining away, measured on the
+      average rather than on single bars so that one heavy session does not
+      define it. A trend advancing on shrinking volume is the classic
+      divergence, and this is the number that states it.
+    formulas:
+      - latex: 'VT_t = \frac{\overline{V}_t(n) - \overline{V}_{t-m}(n)}{\overline{V}_{t-m}(n)} \cdot 100'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 1
+        maximum: 100000
+        description: Window of the volume average.
+      - id: lookback
+        name: Lookback
+        dtype: int
+        default: 20
+        minimum: 1
+        maximum: 100000
+        description: How many bars back the comparison point sits.
+    inputs: [volume]
+    unit: percent
+    direction: higher
+    implementation: factorbase.factors.volume:volume_trend
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 16."
+    status: stable

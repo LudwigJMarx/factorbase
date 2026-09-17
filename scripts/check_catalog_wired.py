@@ -31,7 +31,11 @@ text. It then reported `rsi` as covered, on the strength of the word
 for the indicator existed. A checker that clears an entry on a substring match
 produces the same output as one that verified it, which is the failure this
 whole script exists to prevent, so it now reads the test files as Python and
-counts only identifiers and non-docstring string literals.
+counts only identifiers and the strings handed to a factor lookup.
+
+It then cleared `price` on the strength of a DataFrame column named "price" in
+an unrelated test. Same class of false pass, one layer in. String literals now
+count only as arguments to `compute`, `resolve` or a catalogue subscript.
 """
 
 from __future__ import annotations
@@ -50,28 +54,34 @@ from factorbase.registry import parameter_mismatch, resolve  # noqa: E402
 from factorbase.schema import Kind, Status  # noqa: E402
 
 
-def _docstring_nodes(tree: ast.AST) -> set[int]:
-    """Object ids of the string constants that are docstrings.
+def _string_arguments(call: ast.Call) -> set[str]:
+    """String literals passed to a call, when the call looks like a factor lookup.
 
-    Prose in a docstring is not a reference to a factor. Excluding it is what
-    stops "the right RSI for a particular Tuesday" from counting as a test.
+    Any string literal at all was too loose. A test that builds a frame with a
+    column named "price" cleared the `price` entry without testing it, the same
+    class of false pass as the substring search before it. Only strings handed
+    to `compute` or to a catalogue subscript count now.
     """
-    found: set[int] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
-            body = getattr(node, "body", [])
-            if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
-                if isinstance(body[0].value.value, str):
-                    found.add(id(body[0].value))
-    return found
+    name = ""
+    if isinstance(call.func, ast.Name):
+        name = call.func.id
+    elif isinstance(call.func, ast.Attribute):
+        name = call.func.attr
+    if name not in {"compute", "resolve", "implementation_of"}:
+        return set()
+    return {
+        argument.value
+        for argument in call.args
+        if isinstance(argument, ast.Constant) and isinstance(argument.value, str)
+    }
 
 
 def tested_names() -> set[str]:
-    """Every identifier and non-docstring string literal used under tests/.
+    """Every identifier used under tests/, plus the strings handed to a factor lookup.
 
-    Parsed rather than grepped. A substring search over the raw text reports an
-    entry as covered when its id happens to occur inside an unrelated word; see
-    the note at the top of this file for the run where that actually happened.
+    Parsed rather than grepped, and narrowed twice. Both narrowings came from
+    the checker clearing an entry that had no test; the note at the top of this
+    file has the two runs.
     """
     tests = ROOT / "tests"
     if not tests.is_dir():
@@ -79,7 +89,6 @@ def tested_names() -> set[str]:
     names: set[str] = set()
     for path in sorted(tests.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        docstrings = _docstring_nodes(tree)
         for node in ast.walk(tree):
             if isinstance(node, ast.Name):
                 names.add(node.id)
@@ -91,9 +100,11 @@ def tested_names() -> set[str]:
                 names.add(node.arg)
             elif isinstance(node, ast.alias):
                 names.add(node.asname or node.name.rpartition(".")[2])
-            elif isinstance(node, ast.Constant) and isinstance(node.value, str):
-                if id(node) not in docstrings:
-                    names.add(node.value)
+            elif isinstance(node, ast.Call):
+                names.update(_string_arguments(node))
+            elif isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant):
+                if isinstance(node.slice.value, str):
+                    names.add(node.slice.value)
     return names
 
 

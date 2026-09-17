@@ -1,0 +1,261 @@
+# Return, position in the range, and bar-counting measures.
+
+factors:
+  - id: price
+    name: Price
+    kind: indicator
+    family: performance
+    summary: The close.
+    description: >-
+      Listed as a factor because screens filter on price level directly, and
+      because leaving it out would push callers to reach around the factor
+      interface for the one column everything else is built on.
+    formulas:
+      - latex: 'P_t = C_t'
+    inputs: [close]
+    unit: price
+    direction: undefined
+    output_range: [0, null]
+    implementation: factorbase.factors.performance:price
+    references:
+      - "No reference. It is the close."
+    status: stable
+
+  - id: performance
+    name: Performance
+    kind: indicator
+    family: performance
+    summary: Percentage return over n bars.
+    description: >-
+      Return between two points, nothing more. Set `adjusted` to read it off
+      the adjusted close and get a total return including dividends; leave it
+      off for a price return. The switch raises rather than falling back when
+      the frame has no adjusted column, because a total-return factor quietly
+      reporting a price return is a difference of several percent a year that
+      nothing in the output would reveal.
+    formulas:
+      - latex: 'R_t(n) = \left( \frac{P_t}{P_{t-n}} - 1 \right) \cdot 100'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 250
+        minimum: 1
+        maximum: 100000
+        description: How many bars back the comparison point sits.
+      - id: adjusted
+        name: Use adjusted close
+        dtype: bool
+        default: false
+        description: Read the return off the adjusted close instead of the close.
+    inputs: [close, adjusted_close]
+    unit: percent
+    direction: higher
+    implementation: factorbase.factors.performance:performance
+    references:
+      - "Bacon, C. R. (2008). Practical Portfolio Performance Measurement and Attribution, 2nd ed., ch. 2."
+    status: stable
+
+  - id: daily_performance
+    name: Daily Performance
+    kind: indicator
+    family: performance
+    summary: Percentage return of the latest bar.
+    description: >-
+      One bar's return. Its use in a catalogue of ranking factors is as an
+      input to other things rather than as a ranking on its own; ranking a
+      universe on yesterday's move ranks it on noise.
+    formulas:
+      - latex: 'r_t = \left( \frac{P_t}{P_{t-1}} - 1 \right) \cdot 100'
+    parameters:
+      - id: adjusted
+        name: Use adjusted close
+        dtype: bool
+        default: false
+        description: Read the return off the adjusted close instead of the close.
+    inputs: [close, adjusted_close]
+    unit: percent
+    direction: higher
+    implementation: factorbase.factors.performance:daily_performance
+    references:
+      - "Bacon, C. R. (2008). Practical Portfolio Performance Measurement and Attribution, 2nd ed., ch. 2."
+    status: stable
+
+  - id: annualised_performance
+    name: Annualised Performance
+    kind: indicator
+    family: performance
+    summary: Compound annual growth rate over the window.
+    description: >-
+      The geometric rate, which is what the account shows, not the arithmetic
+      mean of the returns. The gap between them is larger than most readers
+      expect: a year of +50 percent followed by a year of -50 percent averages
+      zero arithmetically and -13.4 percent a year geometrically.
+    formulas:
+      - latex: 'y = \frac{n}{T}'
+        note: Window length in years. T is trading days per year.
+      - latex: 'CAGR_t = \left( \left( \frac{P_t}{P_{t-n}} \right)^{1/y} - 1 \right) \cdot 100'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 750
+        minimum: 1
+        maximum: 100000
+        description: Length of the window in bars.
+      - id: trading_days
+        name: Trading days per year
+        dtype: int
+        default: 250
+        minimum: 1
+        maximum: 366
+        description: How many bars make a year.
+      - id: adjusted
+        name: Use adjusted close
+        dtype: bool
+        default: false
+        description: Read the return off the adjusted close instead of the close.
+    inputs: [close, adjusted_close]
+    unit: percent
+    direction: higher
+    aliases: [cagr, geometric_performance]
+    implementation: factorbase.factors.performance:annualised_performance
+    references:
+      - "Bacon, C. R. (2008). Practical Portfolio Performance Measurement and Attribution, 2nd ed., ch. 2."
+    status: stable
+
+  - id: winning_days
+    name: Winning Days
+    kind: indicator
+    family: performance
+    summary: Share of bars in the window that closed up, in percent.
+    description: >-
+      How often, rather than how much. A high reading with a poor return means
+      the losses were large and rare; a low reading with a good return means
+      the gains were. Unchanged bars count as losses, matching the usual
+      convention, which moves the reading by several points on thin instruments
+      where unchanged closes are common.
+    formulas:
+      - latex: 'W_t = \frac{1}{n} \sum_{i=0}^{n-1} \mathbb{1}\left[ C_{t-i} > C_{t-i-1} \right] \cdot 100'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 250
+        minimum: 1
+        maximum: 100000
+        description: Length of the window.
+    inputs: [close]
+    unit: percent
+    direction: higher
+    output_range: [0, 100]
+    implementation: factorbase.factors.performance:winning_days
+    references:
+      - "Bacon, C. R. (2008). Practical Portfolio Performance Measurement and Attribution, 2nd ed., ch. 4."
+    status: stable
+
+  - id: distance_to_high
+    name: Distance to the High
+    kind: indicator
+    family: performance
+    summary: How far the close sits below the window's highest close, in percent.
+    description: >-
+      Zero at a new high and negative everywhere else. Measured close against
+      highest close, not against highest intraday high: a single spike on one
+      bad print would otherwise hold the reading down for a year, and data
+      errors in intraday highs are the most common kind.
+    formulas:
+      - latex: 'D^{high}_t = \left( \frac{C_t}{\max_{0 \le i < n} C_{t-i}} - 1 \right) \cdot 100'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 250
+        minimum: 1
+        maximum: 100000
+        description: Length of the window.
+    inputs: [close]
+    unit: percent
+    direction: higher
+    output_range: [null, 0]
+    implementation: factorbase.factors.performance:distance_to_high
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 12."
+    status: stable
+
+  - id: distance_to_low
+    name: Distance to the Low
+    kind: indicator
+    family: performance
+    summary: How far the close sits above the window's lowest close, in percent.
+    description: >-
+      The mirror of the previous entry, and one of the conditions in the trend
+      template. Zero at a new low.
+    formulas:
+      - latex: 'D^{low}_t = \left( \frac{C_t}{\min_{0 \le i < n} C_{t-i}} - 1 \right) \cdot 100'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 250
+        minimum: 1
+        maximum: 100000
+        description: Length of the window.
+    inputs: [close]
+    unit: percent
+    direction: higher
+    output_range: [0, null]
+    implementation: factorbase.factors.performance:distance_to_low
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 12."
+    status: stable
+
+  - id: inside_bars
+    name: Inside Bars
+    kind: indicator
+    family: performance
+    summary: How many bars in the window traded entirely inside their predecessor's range.
+    description: >-
+      An inside bar has a lower high and a higher low than the bar before it:
+      the whole session happened within yesterday's range. A cluster of them is
+      compression, which is the state that precedes expansion, and counting
+      them finds it more cheaply than fitting a range does.
+    formulas:
+      - latex: 'I_t = \sum_{i=0}^{n-1} \mathbb{1}\left[ H_{t-i} < H_{t-i-1} \;\wedge\; L_{t-i} > L_{t-i-1} \right]'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 1
+        maximum: 100000
+        description: Length of the window.
+    inputs: [high, low]
+    unit: count
+    direction: undefined
+    output_range: [0, null]
+    implementation: factorbase.factors.performance:inside_bars
+    references:
+      - "Crabel, T. (1990). Day Trading with Short Term Price Patterns and Opening Range Breakout."
+    status: stable
+
+  - id: bars_of_history
+    name: Bars of History
+    kind: indicator
+    family: performance
+    summary: How many bars the instrument has traded up to and including this one.
+    description: >-
+      A gate, not a signal. Most factors here need a year or more of history,
+      and a universe assembled without checking this fills up with recent
+      listings whose readings are either NaN or, worse, computed from a window
+      that happens to be just long enough to return a number.
+    formulas:
+      - latex: 'B_t = \sum_{i=0}^{t} \mathbb{1}\left[ C_i \text{ exists} \right]'
+    inputs: [close]
+    unit: days
+    direction: higher
+    output_range: [0, null]
+    implementation: factorbase.factors.performance:bars_of_history
+    references:
+      - "No reference. It counts rows."
+    status: stable
