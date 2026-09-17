@@ -22,7 +22,9 @@ def close_location_value(prices: pd.DataFrame) -> pd.Series:
 
 
 def accumulation_distribution_line(prices: pd.DataFrame) -> pd.Series:
-    """Running total of volume signed by where the close sat in its bar. Catalogue id `accumulation_distribution_line`.
+    """Running total of volume signed by where the close sat in its bar.
+
+    Catalogue id `accumulation_distribution_line`.
 
     A cumulative sum from the first bar of the frame, so the level depends on
     where the history starts and only its direction carries meaning. Comparing
@@ -36,7 +38,9 @@ def accumulation_distribution_line(prices: pd.DataFrame) -> pd.Series:
 def chaikin_oscillator(
     prices: pd.DataFrame, fast_periods: int = 3, slow_periods: int = 10
 ) -> pd.Series:
-    """Fast minus slow exponential average of the accumulation line. Catalogue id `chaikin_oscillator`.
+    """Fast minus slow exponential average of the accumulation line.
+
+    Catalogue id `chaikin_oscillator`.
 
     Taking a difference of two averages removes the arbitrary starting level
     that the line itself carries, which is what makes the oscillator comparable

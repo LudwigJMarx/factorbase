@@ -50,7 +50,7 @@ def historical_volatility(
     what annualising by the square root of the period count assumes.
     """
     require_columns(prices, ("close",), "historical_volatility")
-    log_returns = np.log(prices["close"] / prices["close"].shift(1))
+    log_returns = pd.Series(np.log(prices["close"] / prices["close"].shift(1)), index=prices.index)
     deviation = log_returns.rolling(window=periods, min_periods=periods).std(ddof=1)
     return deviation * np.sqrt(trading_days) * 100.0
 
@@ -161,7 +161,7 @@ def historical_volatility_weekly(
     """
     require_columns(prices, ("close",), "historical_volatility_weekly")
     weekly = prices["close"].resample("W-FRI").last().dropna()
-    log_returns = np.log(weekly / weekly.shift(1))
+    log_returns = pd.Series(np.log(weekly / weekly.shift(1)), index=weekly.index)
     deviation = log_returns.rolling(window=periods, min_periods=periods).std(ddof=1)
     annualised = deviation * np.sqrt(weeks_per_year) * 100.0
     return annualised.reindex(prices.index, method="ffill")

@@ -97,9 +97,7 @@ def test_distance_to_low_is_never_negative(wobble: pd.DataFrame) -> None:
 
 
 def test_inside_bars_finds_the_contained_sessions() -> None:
-    frame = pd.DataFrame(
-        {"high": [10.0, 9.5, 9.4, 12.0, 11.0], "low": [8.0, 8.5, 8.6, 7.0, 7.5]}
-    )
+    frame = pd.DataFrame({"high": [10.0, 9.5, 9.4, 12.0, 11.0], "low": [8.0, 8.5, 8.6, 7.0, 7.5]})
     assert inside_bars(frame, periods=4).iloc[-1] == pytest.approx(3.0)
 
 

@@ -65,7 +65,9 @@ def growth(
 def compound_annual_growth(
     frame: pd.DataFrame, item: str = "revenue", period: str = "annual", years: int = 5
 ) -> pd.Series:
-    """Compound growth per year of a reported line, in percent. Catalogue id `compound_annual_growth`.
+    """Compound growth per year of a reported line, in percent.
+
+    Catalogue id `compound_annual_growth`.
 
     Undefined from a non-positive base and undefined where the endpoint is
     negative, because a root of a negative number is not a growth rate. Both
@@ -78,7 +80,9 @@ def compound_annual_growth(
 def growth_stability(
     frame: pd.DataFrame, item: str = "revenue", period: str = "annual", years: int = 5
 ) -> pd.Series:
-    """How straight a line the reported series has followed, from 0 to 1. Catalogue id `growth_stability`.
+    """How straight a line the reported series has followed, from 0 to 1.
+
+    Catalogue id `growth_stability`.
 
     Fitted in log space, so a company compounding at a steady 10 percent scores
     1 whatever its size. A company with the same total growth delivered in one
@@ -119,7 +123,9 @@ def growth_consistency(
 def sequential_growth(
     frame: pd.DataFrame, item: str = "revenue", allow_negative_base: bool = False
 ) -> pd.Series:
-    """Percentage change against the immediately preceding quarter. Catalogue id `sequential_growth`.
+    """Percentage change against the immediately preceding quarter.
+
+    Catalogue id `sequential_growth`.
 
     Quarter on quarter, not against the year-ago quarter. It picks up an
     inflection a year earlier than the year-on-year figure and is worthless for
@@ -133,7 +139,9 @@ def sequential_growth(
 def year_on_year_quarterly_growth(
     frame: pd.DataFrame, item: str = "revenue", allow_negative_base: bool = False
 ) -> pd.Series:
-    """Percentage change against the same quarter a year earlier. Catalogue id `year_on_year_quarterly_growth`.
+    """Percentage change against the same quarter a year earlier.
+
+    Catalogue id `year_on_year_quarterly_growth`.
 
     The seasonal counterpart to sequential growth: comparing like quarters
     removes the season and, with it, the ability to see a turn inside the year.

@@ -12,7 +12,6 @@ function's own.
 from __future__ import annotations
 
 import pandas as pd
-import pytest
 
 from factorbase import compute
 
@@ -37,6 +36,7 @@ def flat_run(count: int, level: float = 100.0, body: float = 1.0) -> list[tuple[
 
 
 # ── Single bar ──────────────────────────────────────────────────────────────
+
 
 def test_cs_doji_fires_when_open_and_close_coincide() -> None:
     frame = bars((100.0, 105.0, 95.0, 100.1))
@@ -127,6 +127,7 @@ def test_cs_bearish_belt_hold_opens_at_the_high() -> None:
 
 # ── Two bars ────────────────────────────────────────────────────────────────
 
+
 def test_cs_bullish_engulfing_compares_bodies_not_ranges() -> None:
     """The second bar's range does not cover the first's, but its body does."""
     frame = bars((105.0, 115.0, 100.0, 101.0), (100.5, 108.0, 100.2, 106.0))
@@ -168,6 +169,7 @@ def test_cs_below_the_stomach_clears_the_midpoint_downward() -> None:
 
 
 # ── Three bars ──────────────────────────────────────────────────────────────
+
 
 def test_cs_morning_star_needs_the_third_bar_to_penetrate() -> None:
     deep = bars(

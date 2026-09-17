@@ -70,9 +70,7 @@ def price_to_book(
     frame: pd.DataFrame, market: pd.Series, period: str = "annual", average_years: int = 1
 ) -> pd.Series:
     """Market capitalisation over shareholders' equity. Catalogue id `price_to_book`."""
-    return _multiple(
-        frame, market, "total_equity", "price_to_book", period, average_years, False
-    )
+    return _multiple(frame, market, "total_equity", "price_to_book", period, average_years, False)
 
 
 def price_to_sales(
@@ -135,7 +133,10 @@ def earnings_yield(
 def free_cash_flow_yield(
     frame: pd.DataFrame, market: pd.Series, period: str = "ttm", average_years: int = 1
 ) -> pd.Series:
-    """Free cash flow over market capitalisation, in percent. Catalogue id `free_cash_flow_yield`."""
+    """Free cash flow over market capitalisation, in percent.
+
+    Catalogue id `free_cash_flow_yield`.
+    """
     rows = rows_of(frame, period, "free_cash_flow_yield")
     value = as_of(market, rows.index)
     result = safe_divide(free_cash_flow(rows), value) * 100.0
@@ -162,7 +163,9 @@ def _enterprise_multiple(
     require_fields(frame, (line,), factor_id)
     rows = rows_of(frame, period, factor_id)
     value = enterprise_value(rows, market)
-    return ratio_is_meaningless_when_negative(safe_divide(value, rows[line]), rows[line], allow_negative)
+    return ratio_is_meaningless_when_negative(
+        safe_divide(value, rows[line]), rows[line], allow_negative
+    )
 
 
 def ev_to_ebit(frame: pd.DataFrame, market: pd.Series, period: str = "ttm") -> pd.Series:
@@ -185,9 +188,7 @@ def ev_to_sales(frame: pd.DataFrame, market: pd.Series, period: str = "ttm") -> 
     return _enterprise_multiple(frame, market, "revenue", "ev_to_sales", period)
 
 
-def ev_to_free_cash_flow(
-    frame: pd.DataFrame, market: pd.Series, period: str = "ttm"
-) -> pd.Series:
+def ev_to_free_cash_flow(frame: pd.DataFrame, market: pd.Series, period: str = "ttm") -> pd.Series:
     """Enterprise value over free cash flow. Catalogue id `ev_to_free_cash_flow`."""
     rows = rows_of(frame, period, "ev_to_free_cash_flow")
     flow = free_cash_flow(rows)
@@ -198,7 +199,9 @@ def ev_to_free_cash_flow(
 def magic_formula_earnings_yield(
     frame: pd.DataFrame, market: pd.Series, period: str = "ttm"
 ) -> pd.Series:
-    """Operating income over enterprise value, in percent. Catalogue id `magic_formula_earnings_yield`.
+    """Operating income over enterprise value, in percent.
+
+    Catalogue id `magic_formula_earnings_yield`.
 
     Greenblatt's earnings yield, which is EBIT over enterprise value rather
     than net income over market capitalisation. Both halves sit before
@@ -261,9 +264,7 @@ def dividend_yield(
     return result
 
 
-def payout_ratio(
-    frame: pd.DataFrame, period: str = "annual", average_years: int = 1
-) -> pd.Series:
+def payout_ratio(frame: pd.DataFrame, period: str = "annual", average_years: int = 1) -> pd.Series:
     """Dividends over net income, in percent. Catalogue id `payout_ratio`.
 
     Undefined on a loss rather than negative. A company paying a dividend out

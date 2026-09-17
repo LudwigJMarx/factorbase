@@ -23,8 +23,8 @@ from factorbase.factors.trend import (
 )
 from factorbase.factors.volatility import true_range
 
-
 # ── Directional movement ────────────────────────────────────────────────────
+
 
 def test_only_one_direction_registers_per_bar() -> None:
     frame = pd.DataFrame({"high": [10.0, 12.0, 11.0], "low": [9.0, 10.0, 7.0]})
@@ -59,6 +59,7 @@ def test_an_unbroken_advance_pins_plus_di_and_empties_minus_di(ramp: pd.DataFram
 
 
 # ── ADX ─────────────────────────────────────────────────────────────────────
+
 
 def test_adx_is_direction_blind(wobble: pd.DataFrame) -> None:
     """Mirroring the series about a horizontal line leaves trend strength unchanged."""
@@ -96,12 +97,15 @@ def test_adx_of_a_straight_advance_approaches_one_hundred(ramp: pd.DataFrame) ->
 
 # ── Aroon ───────────────────────────────────────────────────────────────────
 
+
 def test_aroon_up_is_one_hundred_on_a_fresh_high(ramp: pd.DataFrame) -> None:
     assert aroon_up(ramp, periods=25).iloc[100] == pytest.approx(100.0)
 
 
 def test_aroon_down_is_one_hundred_on_a_fresh_low() -> None:
-    falling = pd.DataFrame({"low": np.arange(200.0, 100.0, -1.0), "high": np.arange(202.0, 102.0, -1.0)})
+    falling = pd.DataFrame(
+        {"low": np.arange(200.0, 100.0, -1.0), "high": np.arange(202.0, 102.0, -1.0)}
+    )
     assert aroon_down(falling, periods=25).iloc[80] == pytest.approx(100.0)
 
 
@@ -118,6 +122,7 @@ def test_aroon_oscillator_is_the_difference(wobble: pd.DataFrame) -> None:
 
 
 # ── Regression trend ────────────────────────────────────────────────────────
+
 
 def test_regression_slope_recovers_a_known_growth_rate() -> None:
     """A series compounding at 0.1 percent a day annualises to 1.001**250 - 1."""
@@ -188,6 +193,7 @@ def test_adjusted_slope_is_the_product(wobble: pd.DataFrame) -> None:
 
 
 # ── Trend template ──────────────────────────────────────────────────────────
+
 
 def test_template_reports_each_condition_separately(wobble: pd.DataFrame) -> None:
     """A verdict says no without saying why. The columns are the why."""

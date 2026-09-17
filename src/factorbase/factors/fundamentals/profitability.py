@@ -29,9 +29,7 @@ def _margin(
     return margin
 
 
-def gross_margin(
-    frame: pd.DataFrame, period: str = "annual", average_years: int = 1
-) -> pd.Series:
+def gross_margin(frame: pd.DataFrame, period: str = "annual", average_years: int = 1) -> pd.Series:
     """Gross profit over revenue, in percent. Catalogue id `gross_margin`."""
     return _margin(frame, "gross_profit", "gross_margin", period, average_years)
 
@@ -41,16 +39,12 @@ def ebit_margin(frame: pd.DataFrame, period: str = "annual", average_years: int 
     return _margin(frame, "ebit", "ebit_margin", period, average_years)
 
 
-def ebitda_margin(
-    frame: pd.DataFrame, period: str = "annual", average_years: int = 1
-) -> pd.Series:
+def ebitda_margin(frame: pd.DataFrame, period: str = "annual", average_years: int = 1) -> pd.Series:
     """EBITDA over revenue, in percent. Catalogue id `ebitda_margin`."""
     return _margin(frame, "ebitda", "ebitda_margin", period, average_years)
 
 
-def pretax_margin(
-    frame: pd.DataFrame, period: str = "annual", average_years: int = 1
-) -> pd.Series:
+def pretax_margin(frame: pd.DataFrame, period: str = "annual", average_years: int = 1) -> pd.Series:
     """Pretax income over revenue, in percent. Catalogue id `pretax_margin`."""
     return _margin(frame, "pretax_income", "pretax_margin", period, average_years)
 
@@ -84,7 +78,10 @@ def net_margin_change(frame: pd.DataFrame, years: int = 5) -> pd.Series:
 
 
 def return_on_equity(
-    frame: pd.DataFrame, period: str = "annual", average_years: int = 1, average_balance: bool = True
+    frame: pd.DataFrame,
+    period: str = "annual",
+    average_years: int = 1,
+    average_balance: bool = True,
 ) -> pd.Series:
     """Net income over equity, in percent. Catalogue id `return_on_equity`.
 
@@ -105,7 +102,10 @@ def return_on_equity(
 
 
 def return_on_assets(
-    frame: pd.DataFrame, period: str = "annual", average_years: int = 1, average_balance: bool = True
+    frame: pd.DataFrame,
+    period: str = "annual",
+    average_years: int = 1,
+    average_balance: bool = True,
 ) -> pd.Series:
     """Net income over total assets, in percent. Catalogue id `return_on_assets`."""
     require_fields(frame, ("net_income", "total_assets"), "return_on_assets")
@@ -128,7 +128,9 @@ def invested_capital(frame: pd.DataFrame) -> pd.Series:
     """
     if "invested_capital" in frame.columns:
         return frame["invested_capital"]
-    require_fields(frame, ("total_equity", "total_debt", "cash_and_equivalents"), "invested_capital")
+    require_fields(
+        frame, ("total_equity", "total_debt", "cash_and_equivalents"), "invested_capital"
+    )
     return frame["total_equity"] + frame["total_debt"] - frame["cash_and_equivalents"]
 
 
@@ -139,7 +141,9 @@ def return_on_invested_capital(
     tax_rate: float = 25.0,
     average_balance: bool = True,
 ) -> pd.Series:
-    """After-tax operating profit over invested capital, in percent. Catalogue id `return_on_invested_capital`.
+    """After-tax operating profit over invested capital, in percent.
+
+    Catalogue id `return_on_invested_capital`.
 
     NOPAT over capital, not net income over capital. The numerator has to be
     the return to all providers of capital, because the denominator is what
@@ -164,7 +168,9 @@ def return_on_invested_capital(
 
 
 def magic_formula_return_on_capital(frame: pd.DataFrame, period: str = "annual") -> pd.Series:
-    """EBIT over net working capital plus net fixed assets, in percent. Catalogue id `magic_formula_return_on_capital`.
+    """EBIT over net working capital plus net fixed assets, in percent.
+
+    Catalogue id `magic_formula_return_on_capital`.
 
     Greenblatt's version, and deliberately not the same as return on invested
     capital. It is pretax and it excludes goodwill, so it measures what the
@@ -172,7 +178,9 @@ def magic_formula_return_on_capital(frame: pd.DataFrame, period: str = "annual")
     than on what was paid for it.
     """
     require_fields(
-        frame, ("ebit", "current_assets", "current_liabilities", "total_assets"), "magic_formula_return_on_capital"
+        frame,
+        ("ebit", "current_assets", "current_liabilities", "total_assets"),
+        "magic_formula_return_on_capital",
     )
     rows = rows_of(frame, period, "magic_formula_return_on_capital")
     working_capital = rows["current_assets"] - rows["current_liabilities"]

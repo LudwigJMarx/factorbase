@@ -72,9 +72,7 @@ def current_ratio(frame: pd.DataFrame, period: str = "annual") -> pd.Series:
 
 def quick_ratio(frame: pd.DataFrame, period: str = "annual") -> pd.Series:
     """Current assets less inventory, over current liabilities. Catalogue id `quick_ratio`."""
-    require_fields(
-        frame, ("current_assets", "inventory", "current_liabilities"), "quick_ratio"
-    )
+    require_fields(frame, ("current_assets", "inventory", "current_liabilities"), "quick_ratio")
     rows = rows_of(frame, period, "quick_ratio")
     return safe_divide(rows["current_assets"] - rows["inventory"], rows["current_liabilities"])
 
@@ -89,7 +87,9 @@ def cash_ratio(frame: pd.DataFrame, period: str = "annual") -> pd.Series:
 def interest_coverage(
     frame: pd.DataFrame, period: str = "annual", basis: str = "ebit"
 ) -> pd.Series:
-    """Operating profit or operating cash flow over interest expense. Catalogue id `interest_coverage`.
+    """Operating profit or operating cash flow over interest expense.
+
+    Catalogue id `interest_coverage`.
 
     A company with no interest expense has infinite coverage, which is true and
     unrankable. It returns NaN here, and the entry says to read a NaN as "no
@@ -121,7 +121,9 @@ def debt_coverage(
 
 
 def long_term_debt_to_working_capital(frame: pd.DataFrame, period: str = "annual") -> pd.Series:
-    """Long-term debt over net working capital, as a multiple. Catalogue id `long_term_debt_to_working_capital`.
+    """Long-term debt over net working capital, as a multiple.
+
+    Catalogue id `long_term_debt_to_working_capital`.
 
     Undefined on negative working capital rather than negative, because a
     company funding itself on its suppliers has negative working capital by
@@ -137,7 +139,9 @@ def long_term_debt_to_working_capital(frame: pd.DataFrame, period: str = "annual
     return safe_divide(rows["long_term_debt"], working_capital.where(working_capital > 0.0))
 
 
-def ohlson_o_score(frame: pd.DataFrame, period: str = "annual", gnp_deflator: float = 1.0) -> pd.Series:
+def ohlson_o_score(
+    frame: pd.DataFrame, period: str = "annual", gnp_deflator: float = 1.0
+) -> pd.Series:
     """Ohlson's nine-term bankruptcy score. Catalogue id `ohlson_o_score`.
 
     Higher means more distressed. The coefficients are Ohlson's, fitted on US
@@ -152,8 +156,12 @@ def ohlson_o_score(frame: pd.DataFrame, period: str = "annual", gnp_deflator: fl
     is the caller's job, and the entry says so rather than hiding a constant.
     """
     required = (
-        "total_assets", "total_liabilities", "current_assets", "current_liabilities",
-        "net_income", "operating_cash_flow",
+        "total_assets",
+        "total_liabilities",
+        "current_assets",
+        "current_liabilities",
+        "net_income",
+        "operating_cash_flow",
     )
     require_fields(frame, required, "ohlson_o_score")
     rows = rows_of(frame, period, "ohlson_o_score")
@@ -193,7 +201,9 @@ def ohlson_o_score(frame: pd.DataFrame, period: str = "annual", gnp_deflator: fl
 def ohlson_bankruptcy_probability(
     frame: pd.DataFrame, period: str = "annual", gnp_deflator: float = 1.0
 ) -> pd.Series:
-    """The O-score put through a logistic function, in percent. Catalogue id `ohlson_bankruptcy_probability`.
+    """The O-score put through a logistic function, in percent.
+
+    Catalogue id `ohlson_bankruptcy_probability`.
 
     Reported because the original paper reports it, and carrying the same
     warning: the calibration is from a 1970s US sample. The ordering it

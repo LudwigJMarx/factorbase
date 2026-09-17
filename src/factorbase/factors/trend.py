@@ -63,8 +63,10 @@ def adx(prices: pd.DataFrame, periods: int = 14) -> pd.Series:
 def aroon_up(prices: pd.DataFrame, periods: int = 25) -> pd.Series:
     """Aroon Up. Catalogue id `aroon_up`."""
     require_columns(prices, ("high",), "aroon_up")
-    position = prices["high"].rolling(window=periods, min_periods=periods).apply(
-        lambda window: float(np.argmax(window)), raw=True
+    position = (
+        prices["high"]
+        .rolling(window=periods, min_periods=periods)
+        .apply(lambda window: float(np.argmax(window)), raw=True)
     )
     return position / (periods - 1) * 100.0
 
@@ -72,8 +74,10 @@ def aroon_up(prices: pd.DataFrame, periods: int = 25) -> pd.Series:
 def aroon_down(prices: pd.DataFrame, periods: int = 25) -> pd.Series:
     """Aroon Down. Catalogue id `aroon_down`."""
     require_columns(prices, ("low",), "aroon_down")
-    position = prices["low"].rolling(window=periods, min_periods=periods).apply(
-        lambda window: float(np.argmin(window)), raw=True
+    position = (
+        prices["low"]
+        .rolling(window=periods, min_periods=periods)
+        .apply(lambda window: float(np.argmin(window)), raw=True)
     )
     return position / (periods - 1) * 100.0
 
@@ -105,7 +109,9 @@ def _regression(values: np.ndarray) -> tuple[float, float]:
 def regression_slope_annualised(
     prices: pd.DataFrame, periods: int = 90, trading_days: int = 250
 ) -> pd.Series:
-    """Annualised slope of a log-price regression, in percent. Catalogue id `regression_slope_annualised`.
+    """Annualised slope of a log-price regression, in percent.
+
+    Catalogue id `regression_slope_annualised`.
 
     The regression runs on the logarithm of the close, so the slope is a daily
     compounding rate and annualising it means compounding, not multiplying.
@@ -127,9 +133,7 @@ def trend_stability(prices: pd.DataFrame, periods: int = 90) -> pd.Series:
     )
 
 
-def adjusted_slope(
-    prices: pd.DataFrame, periods: int = 90, trading_days: int = 250
-) -> pd.Series:
+def adjusted_slope(prices: pd.DataFrame, periods: int = 90, trading_days: int = 250) -> pd.Series:
     """Annualised slope scaled by how well the line fits. Catalogue id `adjusted_slope`."""
     return regression_slope_annualised(prices, periods, trading_days) * trend_stability(
         prices, periods

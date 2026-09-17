@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "mypy>=1.10", "ruff>=0.5"]
+dev = ["pytest>=8.0", "mypy>=1.10", "ruff>=0.5", "pandas-stubs>=2.1", "types-PyYAML>=6.0"]
 
 [project.urls]
 Homepage = "https://github.com/LudwigJMarx/factorbase"
@@ -54,6 +54,18 @@ target-version = "py311"
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.mypy]
-python_version = "3.11"
+# No python_version pin. Pinning it to the floor while running on a newer
+# interpreter makes mypy read that interpreter's stubs under the old rules, and
+# numpy's own stubs then fail to parse. The floor is enforced by the CI matrix,
+# which runs the whole suite on every supported version.
 strict = true
 files = ["src/factorbase"]
+
+[[tool.mypy.overrides]]
+# pandas-stubs types most arithmetic on a Series as Any, so strict mode reports
+# every `return series * 100.0` as returning Any from a function declared to
+# return a Series. The fix would be a cast on almost every line of the factor
+# modules, which buys no safety and costs the readability the formulas depend
+# on. Everything else stays strict, including this package's own boundaries.
+module = ["factorbase.factors.*", "factorbase.registry"]
+warn_return_any = false

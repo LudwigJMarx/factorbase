@@ -27,8 +27,8 @@ from factorbase.factors.momentum import (
     williams_percent_r,
 )
 
-
 # ── RSI ─────────────────────────────────────────────────────────────────────
+
 
 def test_rsi_matches_wilders_recursion(wobble: pd.DataFrame) -> None:
     """Recomputed in a loop straight from the entry's second and fourth formula."""
@@ -80,6 +80,7 @@ def test_unknown_smoothing_is_rejected(wobble: pd.DataFrame) -> None:
 
 # ── Rate of change ──────────────────────────────────────────────────────────
 
+
 def test_rate_of_change_is_a_percentage(ramp: pd.DataFrame) -> None:
     result = rate_of_change(ramp, periods=10)
     before, now = ramp["close"].iloc[90], ramp["close"].iloc[100]
@@ -93,6 +94,7 @@ def test_absolute_price_change_is_in_currency(ramp: pd.DataFrame) -> None:
 
 
 # ── MACD family ─────────────────────────────────────────────────────────────
+
 
 def test_macd_is_the_difference_of_two_exponential_averages(wobble: pd.DataFrame) -> None:
     expected = exponential_moving_average(wobble["close"], 12) - exponential_moving_average(
@@ -133,6 +135,7 @@ def test_macd_momentum_reads_the_line_not_the_histogram(wobble: pd.DataFrame) ->
 
 # ── CCI ─────────────────────────────────────────────────────────────────────
 
+
 def test_cci_matches_a_hand_computed_window(wobble: pd.DataFrame) -> None:
     periods, position = 20, 120
     typical = typical_price(wobble)
@@ -153,6 +156,7 @@ def test_cci_uses_mean_absolute_not_standard_deviation(wobble: pd.DataFrame) -> 
 
 
 # ── Stochastics and Williams %R ─────────────────────────────────────────────
+
 
 def test_fast_k_places_the_close_in_the_range(wobble: pd.DataFrame) -> None:
     periods, position = 14, 200
@@ -177,15 +181,11 @@ def test_williams_r_is_fast_k_shifted_by_one_hundred(wobble: pd.DataFrame) -> No
 
 def test_slow_k_is_fast_d(wobble: pd.DataFrame) -> None:
     """Stated in the entry as a naming accident, not a different calculation."""
-    assert np.allclose(
-        stochastic_slow_k(wobble).dropna(), stochastic_fast_d(wobble).dropna()
-    )
+    assert np.allclose(stochastic_slow_k(wobble).dropna(), stochastic_fast_d(wobble).dropna())
 
 
 def test_slow_d_is_fast_k_smoothed_twice(wobble: pd.DataFrame) -> None:
-    expected = simple_moving_average(
-        simple_moving_average(stochastic_fast_k(wobble, 14), 3), 3
-    )
+    expected = simple_moving_average(simple_moving_average(stochastic_fast_k(wobble, 14), 3), 3)
     assert np.allclose(stochastic_slow_d(wobble).dropna(), expected.dropna())
 
 
@@ -195,6 +195,7 @@ def test_flat_range_does_not_divide_by_zero() -> None:
 
 
 # ── Double smoothed stochastics ─────────────────────────────────────────────
+
 
 def test_blau_smooths_before_dividing(wobble: pd.DataFrame) -> None:
     """Recomputed from the entry's three formulas, in order."""
@@ -213,7 +214,10 @@ def test_blau_smooths_before_dividing(wobble: pd.DataFrame) -> None:
 
 
 def test_blau_differs_from_smoothing_the_quotient(wobble: pd.DataFrame) -> None:
-    """The order of division and smoothing is the indicator. If it did not matter, it would not be an indicator."""
+    """The order of division and smoothing is the indicator.
+
+    If it did not matter, it would not be an indicator.
+    """
     naive = exponential_moving_average(
         exponential_moving_average(stochastic_fast_k(wobble, 10).dropna(), 3), 3
     ).dropna()

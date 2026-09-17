@@ -35,7 +35,10 @@ def wma(prices: pd.DataFrame, periods: int = 200) -> pd.Series:
 def price_to_ma_distance(
     prices: pd.DataFrame, periods: int = 200, method: str = "sma"
 ) -> pd.Series:
-    """Close against its own average, in percent of the average. Catalogue id `price_to_ma_distance`."""
+    """Close against its own average, in percent of the average.
+
+    Catalogue id `price_to_ma_distance`.
+    """
     require_columns(prices, ("close",), "price_to_ma_distance")
     average = moving_average(prices["close"], periods, method)
     return (prices["close"] - average) / average * 100.0
@@ -44,7 +47,10 @@ def price_to_ma_distance(
 def ma_to_ma_distance(
     prices: pd.DataFrame, fast_periods: int = 50, slow_periods: int = 200, method: str = "sma"
 ) -> pd.Series:
-    """Fast average against slow average, in percent of the slow one. Catalogue id `ma_to_ma_distance`."""
+    """Fast average against slow average, in percent of the slow one.
+
+    Catalogue id `ma_to_ma_distance`.
+    """
     require_columns(prices, ("close",), "ma_to_ma_distance")
     fast = moving_average(prices["close"], fast_periods, method)
     slow = moving_average(prices["close"], slow_periods, method)

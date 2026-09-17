@@ -134,9 +134,7 @@ def cci(prices: pd.DataFrame, periods: int = 20) -> pd.Series:
     def mean_deviation(window: np.ndarray) -> float:
         return float(np.abs(window - window.mean()).mean())
 
-    deviation = typical.rolling(window=periods, min_periods=periods).apply(
-        mean_deviation, raw=True
-    )
+    deviation = typical.rolling(window=periods, min_periods=periods).apply(mean_deviation, raw=True)
     return (typical - average) / (0.015 * deviation)
 
 
@@ -173,9 +171,7 @@ def stochastic_slow_d(
     prices: pd.DataFrame, periods: int = 14, smoothing: int = 3, second_smoothing: int = 3
 ) -> pd.Series:
     """Slow %D, i.e. %K smoothed twice. Catalogue id `stochastic_slow_d`."""
-    return simple_moving_average(
-        stochastic_slow_k(prices, periods, smoothing), second_smoothing
-    )
+    return simple_moving_average(stochastic_slow_k(prices, periods, smoothing), second_smoothing)
 
 
 def double_smoothed_stochastic_blau(

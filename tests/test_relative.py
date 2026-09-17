@@ -109,9 +109,7 @@ def test_shrunk_beta_is_undefined_without_five_years(
     assert shrunk_beta(geared, market).notna().sum() == 0
 
 
-def test_downside_correlation_uses_only_down_bars(
-    wobble: pd.DataFrame, market: pd.Series
-) -> None:
+def test_downside_correlation_uses_only_down_bars(wobble: pd.DataFrame, market: pd.Series) -> None:
     periods = 250
     own = wobble["close"].pct_change()
     reference = market.pct_change()
@@ -123,9 +121,7 @@ def test_downside_correlation_uses_only_down_bars(
 
 def test_downside_correlation_is_undefined_on_too_few_down_bars(market: pd.Series) -> None:
     """Eight observations do not make a weak estimate. They make noise in a costume."""
-    rising = pd.Series(
-        100.0 * 1.001 ** np.arange(len(market)), index=market.index, name="close"
-    )
+    rising = pd.Series(100.0 * 1.001 ** np.arange(len(market)), index=market.index, name="close")
     frame = pd.DataFrame({"close": rising})
     assert downside_correlation(frame, rising, periods=250, minimum_days=20).isna().all()
 
@@ -135,9 +131,7 @@ def test_downside_outperformance_is_positive_for_a_defensive_instrument(
 ) -> None:
     """Half the market's move: on down days it falls half as far, so the excess is positive."""
     returns = market.pct_change().fillna(0.0)
-    defensive = pd.DataFrame(
-        {"close": 100.0 * (1.0 + 0.5 * returns).cumprod()}, index=market.index
-    )
+    defensive = pd.DataFrame({"close": 100.0 * (1.0 + 0.5 * returns).cumprod()}, index=market.index)
     assert downside_outperformance(defensive, market, periods=250).iloc[-1] > 0.0
 
 
@@ -148,8 +142,6 @@ def test_jensen_alpha_of_a_pure_geared_copy_is_zero(
     assert jensen_alpha(geared, market, periods=250).iloc[-1] == pytest.approx(0.0, abs=1e-6)
 
 
-def test_jensen_alpha_differs_from_outperformance(
-    geared: pd.DataFrame, market: pd.Series
-) -> None:
+def test_jensen_alpha_differs_from_outperformance(geared: pd.DataFrame, market: pd.Series) -> None:
     """Outperformance credits the geared copy with beating the market. Alpha does not."""
     assert outperformance(geared, market, periods=250).iloc[-1] != pytest.approx(0.0, abs=1e-6)

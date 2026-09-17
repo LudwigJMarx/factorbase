@@ -48,7 +48,9 @@ def daily_performance(prices: pd.DataFrame, adjusted: bool = False) -> pd.Series
 def annualised_performance(
     prices: pd.DataFrame, periods: int = 750, trading_days: int = 250, adjusted: bool = False
 ) -> pd.Series:
-    """Compound annual growth rate over the window, in percent. Catalogue id `annualised_performance`.
+    """Compound annual growth rate over the window, in percent.
+
+    Catalogue id `annualised_performance`.
 
     The geometric rate, not the arithmetic mean of returns. The two differ by
     more than most readers expect: a year of +50 percent followed by a year of
@@ -75,7 +77,9 @@ def winning_days(prices: pd.DataFrame, periods: int = 250) -> pd.Series:
 
 
 def distance_to_high(prices: pd.DataFrame, periods: int = 250) -> pd.Series:
-    """How far the close sits below the window's highest close, in percent. Catalogue id `distance_to_high`.
+    """How far the close sits below the window's highest close, in percent.
+
+    Catalogue id `distance_to_high`.
 
     Zero at a new high, negative everywhere else. Measured close to close
     rather than close to intraday high, so a single spike does not hold the
@@ -87,7 +91,10 @@ def distance_to_high(prices: pd.DataFrame, periods: int = 250) -> pd.Series:
 
 
 def distance_to_low(prices: pd.DataFrame, periods: int = 250) -> pd.Series:
-    """How far the close sits above the window's lowest close, in percent. Catalogue id `distance_to_low`."""
+    """How far the close sits above the window's lowest close, in percent.
+
+    Catalogue id `distance_to_low`.
+    """
     require_columns(prices, ("close",), "distance_to_low")
     lowest = prices["close"].rolling(window=periods, min_periods=periods).min()
     return (prices["close"] / lowest - 1.0) * 100.0
@@ -109,7 +116,9 @@ def inside_bars(prices: pd.DataFrame, periods: int = 20) -> pd.Series:
 
 
 def bars_of_history(prices: pd.DataFrame) -> pd.Series:
-    """How many bars the instrument has traded up to and including this one. Catalogue id `bars_of_history`.
+    """How many bars the instrument has traded up to and including this one.
+
+    Catalogue id `bars_of_history`.
 
     A gate, not a signal. Most factors need a year or more of history, and a
     universe assembled without checking this quietly fills with recent listings

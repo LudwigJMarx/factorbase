@@ -22,24 +22,22 @@ from factorbase.factors.volatility import (
     true_range,
 )
 
-
 # ── True range and ATR ──────────────────────────────────────────────────────
+
 
 def test_true_range_is_the_widest_of_the_three_spans() -> None:
     frame = pd.DataFrame(
         {"high": [10.0, 12.0, 9.0], "low": [9.0, 11.0, 8.0], "close": [9.5, 11.5, 8.5]}
     )
     result = true_range(frame)
-    assert result.iloc[0] == pytest.approx(1.0)          # no previous close, plain range
-    assert result.iloc[1] == pytest.approx(2.5)          # high 12.0 against previous close 9.5
-    assert result.iloc[2] == pytest.approx(3.5)          # low 8.0 against previous close 11.5
+    assert result.iloc[0] == pytest.approx(1.0)  # no previous close, plain range
+    assert result.iloc[1] == pytest.approx(2.5)  # high 12.0 against previous close 9.5
+    assert result.iloc[2] == pytest.approx(3.5)  # low 8.0 against previous close 11.5
 
 
 def test_true_range_covers_a_gap_the_plain_range_misses() -> None:
     """The gapped bar's own range is 1.0; the true range has to see the 5.0 jump."""
-    gapped = pd.DataFrame(
-        {"high": [10.0, 16.0], "low": [9.0, 15.0], "close": [10.0, 15.5]}
-    )
+    gapped = pd.DataFrame({"high": [10.0, 16.0], "low": [9.0, 15.0], "close": [10.0, 15.5]})
     assert gapped["high"].iloc[1] - gapped["low"].iloc[1] == pytest.approx(1.0)
     assert true_range(gapped).iloc[1] == pytest.approx(6.0)
 
@@ -71,6 +69,7 @@ def test_atr_percent_divides_by_the_close(ramp: pd.DataFrame) -> None:
 
 
 # ── Volatility ──────────────────────────────────────────────────────────────
+
 
 def test_historical_volatility_matches_the_written_formula(wobble: pd.DataFrame) -> None:
     periods, position = 250, 350
@@ -112,6 +111,7 @@ def test_weekly_volatility_is_carried_onto_daily_bars(wobble: pd.DataFrame) -> N
 
 # ── Drawdown ────────────────────────────────────────────────────────────────
 
+
 def test_average_drawdown_is_never_positive(wobble: pd.DataFrame) -> None:
     values = average_drawdown(wobble, periods=100).dropna()
     assert len(values) > 0
@@ -137,6 +137,7 @@ def test_max_drawdown_is_at_least_as_bad_as_the_average(wobble: pd.DataFrame) ->
 
 # ── Range ───────────────────────────────────────────────────────────────────
 
+
 def test_trading_range_spans_high_to_low(wobble: pd.DataFrame) -> None:
     periods, position = 20, 100
     highest = wobble["high"].iloc[position - periods + 1 : position + 1].max()
@@ -153,6 +154,7 @@ def test_trading_range_ignores_the_path() -> None:
 
 
 # ── Bollinger ───────────────────────────────────────────────────────────────
+
 
 def test_bands_use_the_population_deviation(wobble: pd.DataFrame) -> None:
     """ddof=0, as the entry states. The sample version draws wider bands."""

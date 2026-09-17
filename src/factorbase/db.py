@@ -123,8 +123,14 @@ def build(destination: Path, catalog: Catalog | None = None) -> dict[str, int]:
         destination.unlink()
 
     written = {
-        "factor": 0, "factor_input": 0, "parameter": 0, "formula": 0,
-        "reference": 0, "alias": 0, "tag": 0, "input_field": 0,
+        "factor": 0,
+        "factor_input": 0,
+        "parameter": 0,
+        "formula": 0,
+        "reference": 0,
+        "alias": 0,
+        "tag": 0,
+        "input_field": 0,
     }
 
     with sqlite3.connect(destination) as connection:
@@ -134,11 +140,21 @@ def build(destination: Path, catalog: Catalog | None = None) -> dict[str, int]:
             connection.execute(
                 "INSERT INTO factor VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
-                    factor.id, factor.name, factor.kind.value, factor.family,
-                    factor.summary, factor.description, factor.unit.value,
-                    factor.direction.value, factor.period.value, factor.status.value,
-                    int(factor.requires_benchmark), low, high,
-                    factor.implementation, factor.notes,
+                    factor.id,
+                    factor.name,
+                    factor.kind.value,
+                    factor.family,
+                    factor.summary,
+                    factor.description,
+                    factor.unit.value,
+                    factor.direction.value,
+                    factor.period.value,
+                    factor.status.value,
+                    int(factor.requires_benchmark),
+                    low,
+                    high,
+                    factor.implementation,
+                    factor.notes,
                 ),
             )
             written["factor"] += 1
@@ -153,9 +169,16 @@ def build(destination: Path, catalog: Catalog | None = None) -> dict[str, int]:
                 connection.execute(
                     "INSERT INTO parameter VALUES (?,?,?,?,?,?,?,?,?,?)",
                     (
-                        factor.id, parameter.id, parameter.name, parameter.dtype,
-                        repr(parameter.default), parameter.minimum, parameter.maximum,
-                        ",".join(parameter.choices), parameter.description, position,
+                        factor.id,
+                        parameter.id,
+                        parameter.name,
+                        parameter.dtype,
+                        repr(parameter.default),
+                        parameter.minimum,
+                        parameter.maximum,
+                        ",".join(parameter.choices),
+                        parameter.description,
+                        position,
                     ),
                 )
                 written["parameter"] += 1
@@ -191,7 +214,9 @@ def build(destination: Path, catalog: Catalog | None = None) -> dict[str, int]:
                 connection.execute(
                     "INSERT INTO input_field VALUES (?,?,?,?,?)",
                     (
-                        group, field, definition.get("dtype", ""),
+                        group,
+                        field,
+                        definition.get("dtype", ""),
                         int(bool(definition.get("required", False))),
                         definition.get("description", ""),
                     ),

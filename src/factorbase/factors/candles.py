@@ -59,6 +59,7 @@ def _clean(condition: pd.Series, prices: pd.DataFrame) -> pd.Series:
 
 # ── Single-bar patterns ─────────────────────────────────────────────────────
 
+
 def doji(prices: pd.DataFrame, max_body_ratio: float = 0.05) -> pd.Series:
     """Open and close within a fraction of the bar's range. Catalogue id `cs_doji`."""
     return _clean(anatomy(prices)["body_ratio"] <= max_body_ratio, prices)
@@ -165,7 +166,9 @@ def hammer(
     max_upper_ratio: float = 0.15,
     trend_periods: int = 10,
 ) -> pd.Series:
-    """Small body at the top of the range, long lower shadow, after a decline. Catalogue id `cs_hammer`.
+    """Small body at the top of the range, long lower shadow, after a decline.
+
+    Catalogue id `cs_hammer`.
 
     The preceding decline is part of the definition and is usually dropped by
     pattern scanners. Without it the same shape appearing mid-advance is
@@ -189,7 +192,10 @@ def shooting_star(
     max_lower_ratio: float = 0.15,
     trend_periods: int = 10,
 ) -> pd.Series:
-    """Small body at the bottom of the range, long upper shadow, after an advance. Catalogue id `cs_shooting_star`."""
+    """Small body at the bottom of the range, long upper shadow, after an advance.
+
+    Catalogue id `cs_shooting_star`.
+    """
     shape = anatomy(prices)
     advancing = prices["close"].shift(1) > prices["close"].shift(trend_periods + 1)
     return _clean(
@@ -229,8 +235,11 @@ def bearish_belt_hold(
 
 # ── Two-bar patterns ────────────────────────────────────────────────────────
 
+
 def bullish_engulfing(prices: pd.DataFrame) -> pd.Series:
-    """An up bar whose body covers the previous down bar's body. Catalogue id `cs_bullish_engulfing`.
+    """An up bar whose body covers the previous down bar's body.
+
+    Catalogue id `cs_bullish_engulfing`.
 
     Body against body, not range against range. The shadows are explicitly not
     part of the pattern, which is the point most implementations get wrong by
@@ -248,7 +257,10 @@ def bullish_engulfing(prices: pd.DataFrame) -> pd.Series:
 
 
 def bearish_engulfing(prices: pd.DataFrame) -> pd.Series:
-    """A down bar whose body covers the previous up bar's body. Catalogue id `cs_bearish_engulfing`."""
+    """A down bar whose body covers the previous up bar's body.
+
+    Catalogue id `cs_bearish_engulfing`.
+    """
     shape = anatomy(prices)
     return _clean(
         shape["bearish"]
@@ -261,7 +273,10 @@ def bearish_engulfing(prices: pd.DataFrame) -> pd.Series:
 
 
 def bullish_harami(prices: pd.DataFrame) -> pd.Series:
-    """A small up body contained inside the previous long down body. Catalogue id `cs_bullish_harami`."""
+    """A small up body contained inside the previous long down body.
+
+    Catalogue id `cs_bullish_harami`.
+    """
     shape = anatomy(prices)
     return _clean(
         shape["bullish"]
@@ -274,7 +289,10 @@ def bullish_harami(prices: pd.DataFrame) -> pd.Series:
 
 
 def bearish_harami(prices: pd.DataFrame) -> pd.Series:
-    """A small down body contained inside the previous long up body. Catalogue id `cs_bearish_harami`."""
+    """A small down body contained inside the previous long up body.
+
+    Catalogue id `cs_bearish_harami`.
+    """
     shape = anatomy(prices)
     return _clean(
         shape["bearish"]
@@ -287,7 +305,10 @@ def bearish_harami(prices: pd.DataFrame) -> pd.Series:
 
 
 def above_the_stomach(prices: pd.DataFrame) -> pd.Series:
-    """An up bar opening and closing above the midpoint of the previous down bar's body. Catalogue id `cs_above_the_stomach`."""
+    """An up bar opening and closing above the midpoint of the previous down bar's body.
+
+    Catalogue id `cs_above_the_stomach`.
+    """
     shape = anatomy(prices)
     midpoint = (shape["body_top"].shift(1) + shape["body_bottom"].shift(1)) / 2.0
     return _clean(
@@ -300,7 +321,10 @@ def above_the_stomach(prices: pd.DataFrame) -> pd.Series:
 
 
 def below_the_stomach(prices: pd.DataFrame) -> pd.Series:
-    """A down bar opening and closing below the midpoint of the previous up bar's body. Catalogue id `cs_below_the_stomach`."""
+    """A down bar opening and closing below the midpoint of the previous up bar's body.
+
+    Catalogue id `cs_below_the_stomach`.
+    """
     shape = anatomy(prices)
     midpoint = (shape["body_top"].shift(1) + shape["body_bottom"].shift(1)) / 2.0
     return _clean(
@@ -314,10 +338,13 @@ def below_the_stomach(prices: pd.DataFrame) -> pd.Series:
 
 # ── Three-bar patterns ──────────────────────────────────────────────────────
 
+
 def morning_star(
     prices: pd.DataFrame, max_star_body_ratio: float = 0.3, min_penetration: float = 0.5
 ) -> pd.Series:
-    """Long down bar, small-bodied bar, then an up bar well into the first body. Catalogue id `cs_morning_star`.
+    """Long down bar, small-bodied bar, then an up bar well into the first body.
+
+    Catalogue id `cs_morning_star`.
 
     The third bar has to close at least `min_penetration` of the way up the
     first bar's body. Dropping that requirement, as many scanners do, turns the
@@ -338,7 +365,10 @@ def morning_star(
 def evening_star(
     prices: pd.DataFrame, max_star_body_ratio: float = 0.3, min_penetration: float = 0.5
 ) -> pd.Series:
-    """Long up bar, small-bodied bar, then a down bar well into the first body. Catalogue id `cs_evening_star`."""
+    """Long up bar, small-bodied bar, then a down bar well into the first body.
+
+    Catalogue id `cs_evening_star`.
+    """
     shape = anatomy(prices)
     first_bullish = shape["bullish"].shift(2).astype("boolean")
     star_small = (shape["body_ratio"].shift(1) <= max_star_body_ratio).astype("boolean")
@@ -354,7 +384,10 @@ def evening_star(
 def three_white_soldiers(
     prices: pd.DataFrame, periods: int = 20, multiple: float = 1.0, max_upper_ratio: float = 0.25
 ) -> pd.Series:
-    """Three long up bars, each closing above the last and opening inside its body. Catalogue id `cs_three_white_soldiers`."""
+    """Three long up bars, each closing above the last and opening inside its body.
+
+    Catalogue id `cs_three_white_soldiers`.
+    """
     shape = anatomy(prices)
     long_body = _long_body(prices, periods, multiple)
     condition = pd.Series(True, index=prices.index)
@@ -377,7 +410,10 @@ def three_white_soldiers(
 def three_black_crows(
     prices: pd.DataFrame, periods: int = 20, multiple: float = 1.0, max_lower_ratio: float = 0.25
 ) -> pd.Series:
-    """Three long down bars, each closing below the last and opening inside its body. Catalogue id `cs_three_black_crows`."""
+    """Three long down bars, each closing below the last and opening inside its body.
+
+    Catalogue id `cs_three_black_crows`.
+    """
     shape = anatomy(prices)
     long_body = _long_body(prices, periods, multiple)
     condition = pd.Series(True, index=prices.index)
@@ -398,7 +434,9 @@ def three_black_crows(
 
 
 def bullish_popgun(prices: pd.DataFrame) -> pd.Series:
-    """An inside bar followed by an up bar that engulfs its whole range. Catalogue id `cs_bullish_popgun`.
+    """An inside bar followed by an up bar that engulfs its whole range.
+
+    Catalogue id `cs_bullish_popgun`.
 
     Range against range here, unlike the engulfing patterns, because the
     pattern is about a compressed bar being overrun rather than about bodies.
@@ -411,7 +449,10 @@ def bullish_popgun(prices: pd.DataFrame) -> pd.Series:
 
 
 def bearish_popgun(prices: pd.DataFrame) -> pd.Series:
-    """An inside bar followed by a down bar that engulfs its whole range. Catalogue id `cs_bearish_popgun`."""
+    """An inside bar followed by a down bar that engulfs its whole range.
+
+    Catalogue id `cs_bearish_popgun`.
+    """
     inside = (prices["high"].shift(1) < prices["high"].shift(2)) & (
         prices["low"].shift(1) > prices["low"].shift(2)
     )

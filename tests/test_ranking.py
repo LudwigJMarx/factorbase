@@ -100,6 +100,7 @@ def test_z_score_flips_sign_for_a_lower_is_better_factor() -> None:
 
 # ── Composite ───────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def components() -> dict[str, pd.Series]:
     return {
@@ -108,9 +109,7 @@ def components() -> dict[str, pd.Series]:
     }
 
 
-def test_composite_combines_percentiles_not_raw_values(
-    components: dict[str, pd.Series]
-) -> None:
+def test_composite_combines_percentiles_not_raw_values(components: dict[str, pd.Series]) -> None:
     """The two components are an order of magnitude apart. Raw sums would be one factor."""
     score = composite_score(
         components,
@@ -131,7 +130,7 @@ def test_composite_respects_the_weights(components: dict[str, pd.Series]) -> Non
 
 
 def test_composite_refuses_to_score_an_instrument_missing_a_component(
-    components: dict[str, pd.Series]
+    components: dict[str, pd.Series],
 ) -> None:
     """Renormalising the rest would apply a different strategy to that one row."""
     thin = {
@@ -148,9 +147,7 @@ def test_composite_refuses_to_score_an_instrument_missing_a_component(
     assert score.notna().sum() == 3
 
 
-def test_a_lower_minimum_coverage_admits_the_thin_row(
-    components: dict[str, pd.Series]
-) -> None:
+def test_a_lower_minimum_coverage_admits_the_thin_row(components: dict[str, pd.Series]) -> None:
     thin = {"value": components["value"], "quality": components["quality"].copy()}
     thin["quality"]["BBB"] = np.nan
     score = composite_score(
@@ -163,7 +160,7 @@ def test_a_lower_minimum_coverage_admits_the_thin_row(
 
 
 def test_coverage_tells_thin_data_from_a_missing_instrument(
-    components: dict[str, pd.Series]
+    components: dict[str, pd.Series],
 ) -> None:
     """A composite that only returns numbers cannot make this distinction."""
     thin = {"value": components["value"], "quality": components["quality"].copy()}
@@ -174,7 +171,7 @@ def test_coverage_tells_thin_data_from_a_missing_instrument(
 
 
 def test_composite_requires_a_weight_and_a_direction_for_every_component(
-    components: dict[str, pd.Series]
+    components: dict[str, pd.Series],
 ) -> None:
     with pytest.raises(ValueError, match="no weight given"):
         composite_score(components, {"value": 1.0}, {"value": "higher", "quality": "higher"})
@@ -188,6 +185,7 @@ def test_composite_rejects_an_empty_component_set() -> None:
 
 
 # ── Selection ───────────────────────────────────────────────────────────────
+
 
 def test_top_n_includes_every_instrument_tied_at_the_boundary() -> None:
     """Cutting the tie would make selection depend on column order."""
@@ -220,6 +218,7 @@ def test_buckets_below_two_are_rejected() -> None:
 
 # ── Panels ──────────────────────────────────────────────────────────────────
 
+
 def test_a_panel_is_ranked_within_each_date_not_across_them() -> None:
     """Ranking across dates would compare an instrument today with another last year."""
     panel = pd.DataFrame(
@@ -239,6 +238,7 @@ def test_a_series_returns_a_series_and_a_frame_returns_a_frame(
 
 
 # ── Through the catalogue ───────────────────────────────────────────────────
+
 
 def test_every_cross_sectional_entry_runs_from_the_catalogue(
     cross_section: pd.Series,

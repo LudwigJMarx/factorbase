@@ -8,13 +8,13 @@ one the loader actually enforces.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from .errors import CatalogError
 
 
-class Kind(str, Enum):
+class Kind(StrEnum):
     """What sort of thing a factor is.
 
     The distinction is not cosmetic: it decides what data the factor consumes
@@ -29,24 +29,24 @@ class Kind(str, Enum):
     COMPOSITE = "composite"
 
 
-class Unit(str, Enum):
+class Unit(StrEnum):
     """What the number is in.
 
     Needed because "50" means nothing on its own: bounded oscillator, percent,
     or a currency amount are three different things to rank, plot and filter.
     """
 
-    INDEX = "index"          # bounded oscillator, e.g. 0..100
-    PERCENT = "percent"      # 0.07 is seven percent
-    RATIO = "ratio"          # dimensionless, unbounded, e.g. P/E
-    CURRENCY = "currency"    # amount in the instrument's currency
-    PRICE = "price"          # same scale as the price series
-    COUNT = "count"          # a number of bars, days, occurrences
+    INDEX = "index"  # bounded oscillator, e.g. 0..100
+    PERCENT = "percent"  # 0.07 is seven percent
+    RATIO = "ratio"  # dimensionless, unbounded, e.g. P/E
+    CURRENCY = "currency"  # amount in the instrument's currency
+    PRICE = "price"  # same scale as the price series
+    COUNT = "count"  # a number of bars, days, occurrences
     DAYS = "days"
-    BOOLEAN = "boolean"      # signals, and the selection masks among the composites
+    BOOLEAN = "boolean"  # signals, and the selection masks among the composites
 
 
-class Direction(str, Enum):
+class Direction(StrEnum):
     """Which end of the scale is the good end, when ranking.
 
     UNDEFINED is a real answer, not a gap: for an oscillator neither extreme is
@@ -59,7 +59,7 @@ class Direction(str, Enum):
     UNDEFINED = "undefined"
 
 
-class Period(str, Enum):
+class Period(StrEnum):
     """The reporting basis of a fundamental figure."""
 
     ANNUAL = "annual"
@@ -69,7 +69,7 @@ class Period(str, Enum):
     NOT_APPLICABLE = "not_applicable"
 
 
-class Status(str, Enum):
+class Status(StrEnum):
     """How far an entry has been taken.
 
     DRAFT means the definition is written but the implementation or its test is
@@ -87,7 +87,7 @@ class Parameter:
 
     id: str
     name: str
-    dtype: str                      # int | float | str | bool
+    dtype: str  # int | float | str | bool
     default: Any
     description: str
     minimum: float | None = None

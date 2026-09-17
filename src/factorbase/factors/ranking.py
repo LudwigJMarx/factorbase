@@ -28,12 +28,15 @@ below it the score is NaN.
 
 from __future__ import annotations
 
+from typing import Literal, cast
+
 import numpy as np
 import pandas as pd
 
 from ..schema import Direction
 
 _ASCENDING = {Direction.HIGHER: False, Direction.LOWER: True}
+_TIE_METHODS = ("average", "min", "max", "first", "dense")
 
 
 def _as_frame(values: pd.Series | pd.DataFrame) -> tuple[pd.DataFrame, bool]:
@@ -71,14 +74,23 @@ def rank(
             f"direction must be 'higher' or 'lower', not {direction!r}; "
             "'undefined' cannot be ranked"
         ) from None
-    ranked = frame.rank(axis=1, method=method, ascending=ascending, na_option="keep")
+    if method not in _TIE_METHODS:
+        raise ValueError(f"unknown tie handling {method!r}; expected one of {_TIE_METHODS}")
+    ranked = frame.rank(
+        axis=1,
+        method=cast(Literal["average", "min", "max", "first", "dense"], method),
+        ascending=ascending,
+        na_option="keep",
+    )
     return _restore(ranked, was_series)
 
 
 def percentile(
     values: pd.Series | pd.DataFrame, direction: str = "higher"
 ) -> pd.Series | pd.DataFrame:
-    """Position as a percentage of the cross-section, 100 being best. Catalogue id `factor_percentile`.
+    """Position as a percentage of the cross-section, 100 being best.
+
+    Catalogue id `factor_percentile`.
 
     Comparable across dates and across factors in a way a raw rank is not: a
     rank of 40 means something different in a universe of 50 and one of 3000,
@@ -86,11 +98,12 @@ def percentile(
     """
     frame, was_series = _as_frame(values)
     ranked = rank(frame, direction)
+    assert isinstance(ranked, pd.DataFrame)
     counted = frame.notna().sum(axis=1)
     spread = (counted - 1).where(counted > 1)
     result = ranked.rsub(counted, axis=0).div(spread, axis=0) * 100.0
     lonely = frame.notna().mul(counted == 1, axis=0)
-    return _restore(result.mask(lonely, 50.0), was_series)
+    return _restore(result.where(~lonely, 50.0), was_series)
 
 
 def z_score(
@@ -159,14 +172,16 @@ def composite_score(
     scored: dict[str, pd.DataFrame] = {}
     for name, values in components.items():
         frame, _ = _as_frame(values)
-        scored[name] = percentile(frame, directions[name])
+        block = percentile(frame, directions[name])
+        assert isinstance(block, pd.DataFrame)
+        scored[name] = block
 
-    weighted = None
-    present = None
-    for name, frame in scored.items():
+    weighted: pd.DataFrame | None = None
+    present: pd.DataFrame | None = None
+    for name, block in scored.items():
         weight = weights[name]
-        contribution = frame.fillna(0.0) * weight
-        available = frame.notna().astype("float64") * weight
+        contribution = block.fillna(0.0) * weight
+        available = block.notna().astype("float64") * weight
         weighted = contribution if weighted is None else weighted + contribution
         present = available if present is None else present + available
 
@@ -176,7 +191,9 @@ def composite_score(
     return _restore(result, was_series)
 
 
-def coverage(components: dict[str, pd.Series | pd.DataFrame], weights: dict[str, float]):
+def coverage(
+    components: dict[str, pd.Series | pd.DataFrame], weights: dict[str, float]
+) -> pd.Series | pd.DataFrame:
     """What share of the weight each instrument actually had a value for.
 
     Reported separately so a caller can tell a score of NaN caused by thin data
@@ -186,7 +203,7 @@ def coverage(components: dict[str, pd.Series | pd.DataFrame], weights: dict[str,
     """
     total_weight = sum(weights[name] for name in components)
     was_series = isinstance(next(iter(components.values())), pd.Series)
-    present = None
+    present: pd.DataFrame | None = None
     for name, values in components.items():
         frame, _ = _as_frame(values)
         available = frame.notna().astype("float64") * weights[name]
@@ -206,6 +223,7 @@ def top_n(
     """
     frame, was_series = _as_frame(values)
     ranked = rank(frame, direction, method="min")
+    assert isinstance(ranked, pd.DataFrame)
     selected = (ranked <= count) & ranked.notna()
     return _restore(selected, was_series)
 
@@ -213,7 +231,9 @@ def top_n(
 def quantile_bucket(
     values: pd.Series | pd.DataFrame, buckets: int = 5, direction: str = "higher"
 ) -> pd.Series | pd.DataFrame:
-    """Which fifth, tenth or other slice of the cross-section each instrument is in. Catalogue id `quantile_bucket`.
+    """Which fifth, tenth or other slice of the cross-section each instrument is in.
+
+    Catalogue id `quantile_bucket`.
 
     Bucket 1 is the best. Built from percentiles rather than from the values
     themselves, so the buckets hold equal numbers of instruments rather than

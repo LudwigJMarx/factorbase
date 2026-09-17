@@ -51,6 +51,7 @@ def _became(condition: pd.Series) -> pd.Series:
 
 # ── Moving-average events ───────────────────────────────────────────────────
 
+
 def price_crosses_above_ma(
     prices: pd.DataFrame, periods: int = 200, method: str = "sma"
 ) -> pd.Series:
@@ -115,6 +116,7 @@ def ma_resistance(
 
 # ── Bollinger events ────────────────────────────────────────────────────────
 
+
 def bollinger_support(
     prices: pd.DataFrame, periods: int = 20, deviations: float = 2.0
 ) -> pd.Series:
@@ -136,6 +138,7 @@ def bollinger_resistance(
 
 
 # ── Range events ────────────────────────────────────────────────────────────
+
 
 def new_high(prices: pd.DataFrame, periods: int = 250) -> pd.Series:
     """Close is the highest of the last n bars, and was not yesterday. Catalogue id `new_high`.
@@ -169,7 +172,10 @@ def gap_up(prices: pd.DataFrame, minimum_percent: float = 1.0) -> pd.Series:
 
 
 def gap_down(prices: pd.DataFrame, minimum_percent: float = 1.0) -> pd.Series:
-    """Opened below the previous bar's low by at least the stated margin. Catalogue id `gap_down`."""
+    """Opened below the previous bar's low by at least the stated margin.
+
+    Catalogue id `gap_down`.
+    """
     require_columns(prices, ("open", "low"), "gap_down")
     threshold = prices["low"].shift(1) * (1.0 - minimum_percent / 100.0)
     return (prices["open"] < threshold).fillna(False).astype("bool")
@@ -220,7 +226,9 @@ def darvas_breakout(
 
 
 def pivot_high(prices: pd.DataFrame, left: int = 5, right: int = 5) -> pd.Series:
-    """A bar whose high exceeds the `left` bars before and `right` bars after it. Catalogue id `pivot_high`.
+    """A bar whose high exceeds the `left` bars before and `right` bars after it.
+
+    Catalogue id `pivot_high`.
 
     Confirmed only once the bars to its right exist, so the Series is marked
     True on the pivot bar itself and that value is not knowable until `right`
@@ -235,7 +243,10 @@ def pivot_high(prices: pd.DataFrame, left: int = 5, right: int = 5) -> pd.Series
 
 
 def pivot_low(prices: pd.DataFrame, left: int = 5, right: int = 5) -> pd.Series:
-    """A bar whose low undercuts the `left` bars before and `right` bars after it. Catalogue id `pivot_low`."""
+    """A bar whose low undercuts the `left` bars before and `right` bars after it.
+
+    Catalogue id `pivot_low`.
+    """
     require_columns(prices, ("low",), "pivot_low")
     window = left + right + 1
     rolling_min = prices["low"].rolling(window, min_periods=window).min()
@@ -258,6 +269,7 @@ def pivot_breakout(prices: pd.DataFrame, left: int = 5, right: int = 5) -> pd.Se
 
 
 # ── Oscillator events ───────────────────────────────────────────────────────
+
 
 def macd_cross_up(
     prices: pd.DataFrame,
@@ -308,13 +320,16 @@ def stochastic_cross_down(
 
 # ── Volume events ───────────────────────────────────────────────────────────
 
+
 def accumulation_day(
     prices: pd.DataFrame,
     periods: int = 50,
     volume_multiple: float = 1.0,
     close_position: float = 0.6,
 ) -> pd.Series:
-    """Up day on above-average volume that closed in the upper part of its range. Catalogue id `accumulation_day`.
+    """Up day on above-average volume that closed in the upper part of its range.
+
+    Catalogue id `accumulation_day`.
 
     The closing position is the part usually left out. A bar that rises on
     heavy volume and then gives most of it back before the close is not
@@ -325,14 +340,20 @@ def accumulation_day(
     span = (prices["high"] - prices["low"]).where(prices["high"] != prices["low"])
     position = (prices["close"] - prices["low"]) / span
     return (
-        (prices["close"] > prices["close"].shift(1))
-        & (prices["volume"] >= volume_multiple * average_volume)
-        & (position >= close_position)
-    ).fillna(False).astype("bool")
+        (
+            (prices["close"] > prices["close"].shift(1))
+            & (prices["volume"] >= volume_multiple * average_volume)
+            & (position >= close_position)
+        )
+        .fillna(False)
+        .astype("bool")
+    )
 
 
 def distribution_day(prices: pd.DataFrame, minimum_fall: float = 0.2) -> pd.Series:
-    """Down day of at least the stated size on volume above the previous bar's. Catalogue id `distribution_day`.
+    """Down day of at least the stated size on volume above the previous bar's.
+
+    Catalogue id `distribution_day`.
 
     Volume against the previous bar, not against an average. That is the
     convention the term comes from, and it is deliberately easier to satisfy:
@@ -342,12 +363,17 @@ def distribution_day(prices: pd.DataFrame, minimum_fall: float = 0.2) -> pd.Seri
     require_columns(prices, ("close", "volume"), "distribution_day")
     fall = (prices["close"] / prices["close"].shift(1) - 1.0) * 100.0
     return (
-        (fall <= -minimum_fall) & (prices["volume"] > prices["volume"].shift(1))
-    ).fillna(False).astype("bool")
+        ((fall <= -minimum_fall) & (prices["volume"] > prices["volume"].shift(1)))
+        .fillna(False)
+        .astype("bool")
+    )
 
 
 def volume_peak(prices: pd.DataFrame, periods: int = 250) -> pd.Series:
-    """Volume is the highest of the last n bars, and was not yesterday. Catalogue id `volume_peak`."""
+    """Volume is the highest of the last n bars, and was not yesterday.
+
+    Catalogue id `volume_peak`.
+    """
     require_columns(prices, ("volume",), "volume_peak")
     highest = prices["volume"].rolling(periods, min_periods=periods).max()
     return _became((prices["volume"] >= highest) & highest.notna())
@@ -363,7 +389,9 @@ def buying_climax(
     range_multiple: float = 2.0,
     close_position: float = 0.4,
 ) -> pd.Series:
-    """An extended advance ending in a wide, heavy bar that closed poorly. Catalogue id `buying_climax`.
+    """An extended advance ending in a wide, heavy bar that closed poorly.
+
+    Catalogue id `buying_climax`.
 
     Four conditions, all required: the advance happened, the bar is unusually
     wide, the volume is unusually heavy, and the close gave most of the bar's
@@ -392,7 +420,10 @@ def selling_climax(
     range_multiple: float = 2.0,
     close_position: float = 0.6,
 ) -> pd.Series:
-    """An extended decline ending in a wide, heavy bar that closed well. Catalogue id `selling_climax`."""
+    """An extended decline ending in a wide, heavy bar that closed well.
+
+    Catalogue id `selling_climax`.
+    """
     require_columns(prices, ("high", "low", "close", "volume"), "selling_climax")
     declined = (
         prices["close"] / prices["close"].shift(decline_periods) - 1.0

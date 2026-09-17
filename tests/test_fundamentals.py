@@ -52,7 +52,12 @@ from factorbase.factors.fundamentals.profitability import (
     return_on_invested_capital,
     rule_of_forty,
 )
-from factorbase.factors.fundamentals.size import free_cash_flow, net_income, revenue
+from factorbase.factors.fundamentals.size import (
+    free_cash_flow,
+    market_capitalisation,
+    net_income,
+    revenue,
+)
 from factorbase.factors.fundamentals.valuation import (
     dividend_yield,
     earnings_yield,
@@ -70,10 +75,9 @@ from factorbase.factors.fundamentals.valuation import (
     price_to_free_cash_flow,
     price_to_sales,
 )
-from factorbase.factors.fundamentals.size import market_capitalisation
-
 
 # ── The reporting basis is selected, never assumed ──────────────────────────
+
 
 def test_a_factor_reads_only_the_basis_it_was_asked_for(accounts: pd.DataFrame) -> None:
     """A frame holding annual, quarterly and TTM rows must not mix them."""
@@ -97,6 +101,7 @@ def test_a_missing_field_names_the_field(accounts: pd.DataFrame) -> None:
 
 
 # ── Margins ─────────────────────────────────────────────────────────────────
+
 
 def test_margins_are_the_ratios_they_claim(accounts: pd.DataFrame) -> None:
     assert gross_margin(accounts).iloc[-1] == pytest.approx(40.0)
@@ -146,6 +151,7 @@ def test_research_intensity_can_be_measured_against_either_base(
 
 # ── Returns on capital ──────────────────────────────────────────────────────
 
+
 def test_return_on_equity_averages_the_balance_by_default(accounts: pd.DataFrame) -> None:
     """Income accrues over the year; equity is a snapshot at its end."""
     rows = accounts[accounts["period"] == "annual"]
@@ -173,9 +179,9 @@ def test_roic_uses_after_tax_operating_profit_not_net_income(
     nopat = rows["ebit"].iloc[-1] * 0.75
     expected = nopat / ((capital.iloc[-1] + capital.iloc[-2]) / 2.0) * 100.0
     assert return_on_invested_capital(accounts).iloc[-1] == pytest.approx(expected)
-    net_income_version = rows["net_income"].iloc[-1] / (
-        (capital.iloc[-1] + capital.iloc[-2]) / 2.0
-    ) * 100.0
+    net_income_version = (
+        rows["net_income"].iloc[-1] / ((capital.iloc[-1] + capital.iloc[-2]) / 2.0) * 100.0
+    )
     assert expected != pytest.approx(net_income_version)
 
 
@@ -203,6 +209,7 @@ def test_rule_of_forty_adds_growth_to_margin(accounts: pd.DataFrame) -> None:
 
 
 # ── Multiples ───────────────────────────────────────────────────────────────
+
 
 def test_market_value_is_read_as_of_the_reporting_date(
     accounts: pd.DataFrame, market_value: pd.Series
@@ -288,13 +295,14 @@ def test_enterprise_multiples_are_above_their_price_counterparts(
     accounts: pd.DataFrame, market_value: pd.Series
 ) -> None:
     """This company has more debt than cash, so enterprise value exceeds market value."""
-    assert ev_to_sales(accounts, market_value).iloc[-1] > price_to_sales(
-        accounts, market_value
-    ).iloc[-1]
+    assert (
+        ev_to_sales(accounts, market_value).iloc[-1]
+        > price_to_sales(accounts, market_value).iloc[-1]
+    )
     assert ev_to_ebitda(accounts, market_value).iloc[-1] > 0.0
-    assert ev_to_ebit(accounts, market_value).iloc[-1] > ev_to_ebitda(
-        accounts, market_value
-    ).iloc[-1]
+    assert (
+        ev_to_ebit(accounts, market_value).iloc[-1] > ev_to_ebitda(accounts, market_value).iloc[-1]
+    )
     assert ev_to_free_cash_flow(accounts, market_value).iloc[-1] > 0.0
 
 
@@ -304,9 +312,7 @@ def test_greenblatt_earnings_yield_divides_ebit_by_enterprise_value(
     ttm = accounts[accounts["period"] == "ttm"]
     value = 2700.0 + ttm["total_debt"].iloc[-1] - ttm["cash_and_equivalents"].iloc[-1]
     expected = ttm["ebit"].iloc[-1] / value * 100.0
-    assert magic_formula_earnings_yield(accounts, market_value).iloc[-1] == pytest.approx(
-        expected
-    )
+    assert magic_formula_earnings_yield(accounts, market_value).iloc[-1] == pytest.approx(expected)
 
 
 def test_peg_is_undefined_where_growth_is_not_positive(
@@ -346,6 +352,7 @@ def test_payout_ratio_is_undefined_on_a_loss(accounts: pd.DataFrame) -> None:
 
 
 # ── Leverage and liquidity ──────────────────────────────────────────────────
+
 
 def test_balance_sheet_ratios(accounts: pd.DataFrame) -> None:
     assert equity_ratio(accounts).iloc[-1] == pytest.approx(40.0)
@@ -439,6 +446,7 @@ def test_o_score_probability_is_monotone_in_the_score(accounts: pd.DataFrame) ->
 
 # ── Growth ──────────────────────────────────────────────────────────────────
 
+
 def test_growth_of_a_ten_percent_company_is_ten(accounts: pd.DataFrame) -> None:
     assert growth(accounts, item="revenue", period="annual", periods=1).iloc[-1] == pytest.approx(
         10.0
@@ -507,6 +515,7 @@ def test_an_unknown_item_is_rejected(accounts: pd.DataFrame) -> None:
 
 
 # ── Absolute lines ──────────────────────────────────────────────────────────
+
 
 def test_size_factors_return_the_reported_lines(accounts: pd.DataFrame) -> None:
     ttm = accounts[accounts["period"] == "ttm"]

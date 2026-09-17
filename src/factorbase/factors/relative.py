@@ -43,7 +43,9 @@ def relative_strength_levy(prices: pd.DataFrame, periods: int = 130) -> pd.Serie
 
 
 def relative_strength_line(prices: pd.DataFrame, benchmark: pd.Series) -> pd.Series:
-    """Price divided by benchmark, rebased to 100 at the first common bar. Catalogue id `relative_strength_line`.
+    """Price divided by benchmark, rebased to 100 at the first common bar.
+
+    Catalogue id `relative_strength_line`.
 
     Rebasing matters. The raw ratio carries the arbitrary level of both series,
     so two instruments cannot be compared on it and the same instrument cannot
@@ -61,7 +63,9 @@ def relative_strength_line(prices: pd.DataFrame, benchmark: pd.Series) -> pd.Ser
 
 
 def outperformance(prices: pd.DataFrame, benchmark: pd.Series, periods: int = 250) -> pd.Series:
-    """Instrument return minus benchmark return over n bars, in percentage points. Catalogue id `outperformance`.
+    """Instrument return minus benchmark return over n bars, in percentage points.
+
+    Catalogue id `outperformance`.
 
     A difference of two percentage returns, not a ratio of them. The difference
     is what a reader expects from "outperformance" and is additive across
@@ -98,7 +102,9 @@ def shrunk_beta(
     correlation_horizon: int = 3,
     weight: float = 0.6,
 ) -> pd.Series:
-    """Beta from separate volatility and correlation estimates, shrunk towards one. Catalogue id `shrunk_beta`.
+    """Beta from separate volatility and correlation estimates, shrunk towards one.
+
+    Catalogue id `shrunk_beta`.
 
     Frazzini and Pedersen estimate the two halves of beta over different
     windows: volatility over a year of daily returns, correlation over five
@@ -112,9 +118,9 @@ def shrunk_beta(
     market = np.log(aligned).diff()
 
     own_volatility = own.rolling(volatility_periods, min_periods=volatility_periods).std(ddof=1)
-    market_volatility = market.rolling(
-        volatility_periods, min_periods=volatility_periods
-    ).std(ddof=1)
+    market_volatility = market.rolling(volatility_periods, min_periods=volatility_periods).std(
+        ddof=1
+    )
 
     own_horizon = own.rolling(correlation_horizon).sum()
     market_horizon = market.rolling(correlation_horizon).sum()
@@ -126,21 +132,27 @@ def shrunk_beta(
     return weight * estimate + (1.0 - weight) * 1.0
 
 
-def return_correlation(
-    prices: pd.DataFrame, benchmark: pd.Series, periods: int = 250
-) -> pd.Series:
-    """Rolling correlation of daily returns with the benchmark. Catalogue id `return_correlation`."""
+def return_correlation(prices: pd.DataFrame, benchmark: pd.Series, periods: int = 250) -> pd.Series:
+    """Rolling correlation of daily returns with the benchmark.
+
+    Catalogue id `return_correlation`.
+    """
     require_columns(prices, ("close",), "return_correlation")
     aligned = _aligned_benchmark(prices, benchmark, "return_correlation")
-    return prices["close"].pct_change().rolling(periods, min_periods=periods).corr(
-        aligned.pct_change()
+    return (
+        prices["close"]
+        .pct_change()
+        .rolling(periods, min_periods=periods)
+        .corr(aligned.pct_change())
     )
 
 
 def downside_correlation(
     prices: pd.DataFrame, benchmark: pd.Series, periods: int = 250, minimum_days: int = 20
 ) -> pd.Series:
-    """Correlation computed only on bars where the benchmark fell. Catalogue id `downside_correlation`.
+    """Correlation computed only on bars where the benchmark fell.
+
+    Catalogue id `downside_correlation`.
 
     The correlation that matters for diversification is the one that holds when
     the market falls, and it is routinely higher than the all-weather figure.
@@ -162,7 +174,9 @@ def downside_correlation(
 def downside_outperformance(
     prices: pd.DataFrame, benchmark: pd.Series, periods: int = 250, minimum_days: int = 20
 ) -> pd.Series:
-    """Mean excess return on the bars where the benchmark fell, in percentage points. Catalogue id `downside_outperformance`.
+    """Mean excess return on the bars where the benchmark fell, in percentage points.
+
+    Catalogue id `downside_outperformance`.
 
     Answers how the instrument behaves on the market's bad days, which is a
     different question from how it behaves on average. Positive means it fell
@@ -198,10 +212,12 @@ def jensen_alpha(
     daily_free = (1.0 + risk_free_rate / 100.0) ** (1.0 / trading_days) - 1.0
     own = prices["close"].pct_change() - daily_free
     market = aligned.pct_change() - daily_free
-    estimated_beta = own.rolling(periods, min_periods=periods).cov(market) / market.rolling(
-        periods, min_periods=periods
-    ).var()
-    intercept = own.rolling(periods, min_periods=periods).mean() - estimated_beta * market.rolling(
-        periods, min_periods=periods
-    ).mean()
+    estimated_beta = (
+        own.rolling(periods, min_periods=periods).cov(market)
+        / market.rolling(periods, min_periods=periods).var()
+    )
+    intercept = (
+        own.rolling(periods, min_periods=periods).mean()
+        - estimated_beta * market.rolling(periods, min_periods=periods).mean()
+    )
     return ((1.0 + intercept) ** trading_days - 1.0) * 100.0

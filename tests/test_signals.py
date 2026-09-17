@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from factorbase import compute
 from factorbase.factors.signals import (
@@ -60,6 +59,7 @@ def series_frame(close: list[float]) -> pd.DataFrame:
 
 # ── Events fire once ────────────────────────────────────────────────────────
 
+
 def test_price_cross_fires_once_not_every_bar_above() -> None:
     frame = series_frame([100.0] * 30 + [110.0] * 30)
     fired = price_crosses_above_ma(frame, periods=20, method="sma")
@@ -91,6 +91,7 @@ def test_volume_peak_fires_once_inside_a_heavy_stretch() -> None:
 
 
 # ── Moving-average crossings ────────────────────────────────────────────────
+
 
 def test_golden_cross_and_death_cross_are_mirrors() -> None:
     up = series_frame([100.0] * 60 + list(np.linspace(100.0, 200.0, 120)))
@@ -127,6 +128,7 @@ def test_ma_resistance_is_the_mirror_of_support() -> None:
 
 # ── Bollinger ───────────────────────────────────────────────────────────────
 
+
 def test_bollinger_support_needs_a_recovery_into_the_band(wobble: pd.DataFrame) -> None:
     from factorbase.factors.volatility import bollinger_bands
 
@@ -147,6 +149,7 @@ def test_bollinger_resistance_needs_a_rejection(wobble: pd.DataFrame) -> None:
 
 
 # ── Gaps ────────────────────────────────────────────────────────────────────
+
 
 def test_gap_up_measures_against_the_previous_high_not_close() -> None:
     """An open above yesterday's close but inside its range is not a gap."""
@@ -181,6 +184,7 @@ def test_gap_down_measures_against_the_previous_low() -> None:
 
 # ── Breakouts ───────────────────────────────────────────────────────────────
 
+
 def test_expansion_breakout_rejects_a_narrow_bar_over_the_high() -> None:
     """Same close above the same prior high. Only the bar's width differs."""
     base = series_frame([100.0] * 40 + [101.0])
@@ -210,19 +214,26 @@ def test_darvas_breakout_requires_an_actual_box() -> None:
 
 # ── Pivots ──────────────────────────────────────────────────────────────────
 
+
 def test_pivot_high_marks_the_local_extreme() -> None:
-    frame = series_frame([100.0, 101.0, 102.0, 103.0, 104.0, 110.0, 104.0, 103.0, 102.0, 101.0, 100.0])
+    frame = series_frame(
+        [100.0, 101.0, 102.0, 103.0, 104.0, 110.0, 104.0, 103.0, 102.0, 101.0, 100.0]
+    )
     assert bool(pivot_high(frame, left=5, right=5).iloc[5])
 
 
 def test_pivot_low_marks_the_local_extreme() -> None:
-    frame = series_frame([110.0, 109.0, 108.0, 107.0, 106.0, 100.0, 106.0, 107.0, 108.0, 109.0, 110.0])
+    frame = series_frame(
+        [110.0, 109.0, 108.0, 107.0, 106.0, 100.0, 106.0, 107.0, 108.0, 109.0, 110.0]
+    )
     assert bool(pivot_low(frame, left=5, right=5).iloc[5])
 
 
 def test_pivot_high_reads_ahead_and_the_entry_says_so() -> None:
     """Truncating the series after the pivot bar removes the pivot. That is the look-ahead."""
-    full = series_frame([100.0, 101.0, 102.0, 103.0, 104.0, 110.0, 104.0, 103.0, 102.0, 101.0, 100.0])
+    full = series_frame(
+        [100.0, 101.0, 102.0, 103.0, 104.0, 110.0, 104.0, 103.0, 102.0, 101.0, 100.0]
+    )
     truncated = full.iloc[:6]
     assert bool(pivot_high(full, 5, 5).iloc[5])
     assert pivot_high(truncated, 5, 5).sum() == 0
@@ -237,6 +248,7 @@ def test_pivot_breakout_uses_only_confirmed_pivots() -> None:
 
 
 # ── Oscillator crossings ────────────────────────────────────────────────────
+
 
 def test_macd_crossings_are_events_and_are_mutually_exclusive(wobble: pd.DataFrame) -> None:
     up = macd_cross_up(wobble)
@@ -260,6 +272,7 @@ def test_stochastic_cross_down_respects_its_threshold(wobble: pd.DataFrame) -> N
 
 
 # ── Volume events ───────────────────────────────────────────────────────────
+
 
 def test_accumulation_day_requires_a_strong_close() -> None:
     """Up on heavy volume, but giving it back before the close, is not accumulation."""

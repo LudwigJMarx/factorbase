@@ -13,6 +13,7 @@ import pandas as pd
 import pytest
 
 from factorbase import compute, default_catalog
+from factorbase.errors import MissingInputError
 from factorbase.factors._common import moving_average
 from factorbase.factors.moving_averages import (
     ema,
@@ -24,7 +25,6 @@ from factorbase.factors.moving_averages import (
     wma,
 )
 from factorbase.factors.volatility import atr
-from factorbase.errors import MissingInputError
 
 
 def test_sma_equals_the_written_mean(ramp: pd.DataFrame) -> None:

@@ -91,7 +91,9 @@ def dispersion_ratio(
     return (mean / deviation.where(deviation > floor)).where(deviation.notna())
 
 
-def growth_rate(series: pd.Series, periods: int = 1, allow_negative_base: bool = False) -> pd.Series:
+def growth_rate(
+    series: pd.Series, periods: int = 1, allow_negative_base: bool = False
+) -> pd.Series:
     """Percentage change over `periods` observations.
 
     From a negative base the result is meaningless: a loss shrinking from -100

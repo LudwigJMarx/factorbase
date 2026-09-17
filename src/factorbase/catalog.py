@@ -61,7 +61,14 @@ def _enum(cls: type, value: Any, source: str, factor_id: str, key: str) -> Any:
 
 def _parameter_from(raw: dict[str, Any], source: str, factor_id: str) -> Parameter:
     unknown = set(raw) - {
-        "id", "name", "dtype", "default", "description", "minimum", "maximum", "choices",
+        "id",
+        "name",
+        "dtype",
+        "default",
+        "description",
+        "minimum",
+        "maximum",
+        "choices",
     }
     if unknown:
         raise CatalogError(source, f"{factor_id}: parameter has unknown keys {sorted(unknown)}")
@@ -78,9 +85,26 @@ def _parameter_from(raw: dict[str, Any], source: str, factor_id: str) -> Paramet
 
 
 _FACTOR_KEYS = {
-    "id", "name", "kind", "family", "summary", "description", "inputs", "unit", "direction",
-    "status", "formulas", "parameters", "period", "requires_benchmark", "output_range",
-    "aliases", "references", "implementation", "notes", "tags",
+    "id",
+    "name",
+    "kind",
+    "family",
+    "summary",
+    "description",
+    "inputs",
+    "unit",
+    "direction",
+    "status",
+    "formulas",
+    "parameters",
+    "period",
+    "requires_benchmark",
+    "output_range",
+    "aliases",
+    "references",
+    "implementation",
+    "notes",
+    "tags",
 }
 
 

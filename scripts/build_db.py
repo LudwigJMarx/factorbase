@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Render the catalogue into a SQLite file.
 
-@nicht-in-der-ci Builds an artefact rather than checking one; the catalogue it
-reads is already validated by check_catalog_wired.py, which does run there.
+Not a checker by the naming convention, so check_gates_wired.py does not track
+it, and it carries no exemption marker: the workflow does call it, as a build
+step rather than as a gate.
 """
 
 from __future__ import annotations

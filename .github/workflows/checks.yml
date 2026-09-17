@@ -1,0 +1,72 @@
+# Everything that runs on every push.
+#
+# ── WHY THIS FILE MATTERS ──────────────────────────────────────────────────
+#
+# A checker nobody runs is a file. This is the place where files become
+# checkers, and `check_gates_wired.py` is the checker that keeps track of
+# exactly that.
+#
+# ── WHAT BELONGS HERE ──────────────────────────────────────────────────────
+#
+# Every step names its checker by file name, so `check_gates_wired.py` can find
+# it. Going through a package script is fine too, but then that script has to
+# be called here by name.
+#
+# What does not belong here: a prose list of the gates. The binding list is
+# this file, plus the repository's ruleset (`gh api repos/:owner/:repo/rulesets`).
+# A list in a README is stale by the next merge.
+
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: python3 -m pip install --upgrade pip && python3 -m pip install -e ".[dev]"
+
+      # First the checker over the checkers. If it fails, every step below says
+      # less than it appears to say.
+      - name: Every checker is actually called
+        run: python3 scripts/check_gates_wired.py
+
+      - name: The wiring checker's own test
+        run: python3 scripts/check_gates_wired.test.py
+
+      # ── THE PROJECT ITSELF ──────────────────────────────────────────────
+      # Each gate named separately rather than hidden in one step, so a red
+      # square says WHAT is red.
+
+      - name: The catalogue and the code still describe the same thing
+        run: python3 scripts/check_catalog_wired.py
+
+      - name: Tests
+        run: python3 -m pytest tests/ -W error::DeprecationWarning
+
+      - name: Lint
+        run: python3 -m ruff check src tests scripts
+
+      - name: Formatting
+        run: python3 -m ruff format --check src tests scripts
+
+      - name: Types
+        run: python3 -m mypy
+
+      - name: The catalogue renders to SQLite
+        run: python3 scripts/build_db.py --out /tmp/factorbase.sqlite3

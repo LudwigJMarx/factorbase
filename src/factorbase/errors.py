@@ -32,7 +32,9 @@ class MissingInputError(FactorbaseError):
     of the error is to tell the caller which column to add to their loader.
     """
 
-    def __init__(self, factor_id: str, missing: tuple[str, ...], available: tuple[str, ...]) -> None:
+    def __init__(
+        self, factor_id: str, missing: tuple[str, ...], available: tuple[str, ...]
+    ) -> None:
         super().__init__(
             f"factor {factor_id!r} needs {', '.join(missing)}; "
             f"the frame has {', '.join(available) or '<no columns>'}"
@@ -51,9 +53,7 @@ class InsufficientHistoryError(FactorbaseError):
     """
 
     def __init__(self, factor_id: str, needed: int, given: int) -> None:
-        super().__init__(
-            f"factor {factor_id!r} needs at least {needed} observations, got {given}"
-        )
+        super().__init__(f"factor {factor_id!r} needs at least {needed} observations, got {given}")
         self.factor_id = factor_id
         self.needed = needed
         self.given = given
