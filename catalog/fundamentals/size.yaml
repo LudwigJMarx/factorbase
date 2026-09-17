@@ -1,0 +1,78 @@
+# The reported lines other factors are built from, as factors in their own right.
+#
+# A screen filters on absolute revenue or absolute profit as readily as on any
+# ratio. Leaving these out would push callers to reach around the factor
+# interface for the columns everything else here divides.
+
+factors:
+  - id: revenue
+    name: Revenue
+    kind: fundamental
+    family: size
+    summary: Reported revenue for the period, in currency.
+    description: >-
+      Net sales as reported, on whichever basis the parameter selects. Not
+      comparable across currencies without a conversion the caller has to do
+      first; nothing here converts anything.
+    formulas:
+      - latex: 'R_t = Revenue_t'
+    parameters: &period_only
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: ttm
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+    inputs: [revenue]
+    unit: currency
+    direction: higher
+    period: ttm
+    output_range: [0, null]
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 2."
+    implementation: factorbase.factors.fundamentals.size:revenue
+    status: stable
+
+  - id: net_income
+    name: Net Income
+    kind: fundamental
+    family: size
+    summary: Reported net income for the period, in currency.
+    description: >-
+      Profit attributable to shareholders, as reported. The line every earnings
+      multiple divides, exposed so that a screen can filter on its sign before
+      it ever reaches a ratio that is undefined there.
+    formulas:
+      - latex: 'NI_t = NetIncome_t'
+    parameters: *period_only
+    inputs: [net_income]
+    unit: currency
+    direction: higher
+    period: ttm
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 2."
+    implementation: factorbase.factors.fundamentals.size:net_income
+    status: stable
+
+  - id: free_cash_flow
+    name: Free Cash Flow
+    kind: fundamental
+    family: size
+    summary: Operating cash flow less capital expenditure, in currency.
+    description: >-
+      Used as reported when the source supplies it, derived otherwise. The
+      derivation treats capital expenditure as a positive number, as the data
+      contract states: a source that reports it negative would have it added
+      instead of subtracted, and free cash flow would come out at roughly twice
+      the truth for any capital-intensive business.
+    formulas:
+      - latex: 'FCF_t = OperatingCashFlow_t - CapEx_t'
+    parameters: *period_only
+    inputs: [operating_cash_flow, capital_expenditure, free_cash_flow]
+    unit: currency
+    direction: higher
+    period: ttm
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 10."
+    implementation: factorbase.factors.fundamentals.size:free_cash_flow
+    status: stable

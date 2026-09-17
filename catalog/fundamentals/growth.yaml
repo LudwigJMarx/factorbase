@@ -1,0 +1,284 @@
+# Growth rates, compound growth and how steady the growth was.
+#
+# Each entry takes an `item`: which reported line to measure. One formula
+# applied to revenue, earnings, cash flow or equity beats eight entries that
+# differ only in a column name and drift apart on the ninth edit.
+
+factors:
+  - id: growth
+    name: Growth
+    kind: fundamental
+    family: growth
+    summary: Percentage change of a reported line over n periods.
+    description: >-
+      From a negative base the number is not a growth rate. A loss shrinking
+      from -100 to -50 computes as -50 percent and reads as deterioration when
+      it is an improvement. Those readings are NaN by default, and
+      `allow_negative_base` returns them for callers who handle it themselves.
+
+      `periods` counts rows of the chosen basis, not months. Four quarterly
+      rows is a year; four annual rows is four years. The same argument means
+      different things under different bases and nothing in the output would
+      reveal the mistake, which is why it is stated here.
+    formulas:
+      - latex: 'g_t(n) = \left( \frac{X_t}{X_{t-n}} - 1 \right) \cdot 100, \qquad X_{t-n} > 0'
+    parameters: &growth_parameters
+      - id: item
+        name: Reported line
+        dtype: str
+        default: revenue
+        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend]
+        description: Which line of the accounts the growth is measured on.
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: ttm
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 4
+        minimum: 1
+        maximum: 1000
+        description: How many rows of that basis back the comparison point sits.
+      - id: allow_negative_base
+        name: Allow a negative base
+        dtype: bool
+        default: false
+        description: Return the number even where the starting value was not positive.
+    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid]
+    unit: percent
+    direction: higher
+    period: ttm
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 13."
+    implementation: factorbase.factors.fundamentals.growth:growth
+    status: stable
+
+  - id: compound_annual_growth
+    name: Compound Annual Growth
+    kind: fundamental
+    family: growth
+    summary: Compound growth per period of a reported line, in percent.
+    description: >-
+      Undefined from a non-positive base and undefined where the endpoint is
+      negative, because a root of a negative number is not a growth rate. Both
+      are NaN here rather than a complex value quietly reduced to its real
+      part, which is what a naive implementation produces and what nobody
+      notices.
+    formulas:
+      - latex: 'CAGR_t = \left( \left( \frac{X_t}{X_{t-n}} \right)^{1/n} - 1 \right) \cdot 100, \qquad X_t > 0,\; X_{t-n} > 0'
+    parameters:
+      - id: item
+        name: Reported line
+        dtype: str
+        default: revenue
+        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend]
+        description: Which line of the accounts the growth is measured on.
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: years
+        name: Periods
+        dtype: int
+        default: 5
+        minimum: 1
+        maximum: 100
+        description: How many rows of that basis the growth compounds over.
+    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid]
+    unit: percent
+    direction: higher
+    period: annual
+    aliases: [geometric_growth]
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 13."
+    implementation: factorbase.factors.fundamentals.growth:compound_annual_growth
+    status: stable
+
+  - id: growth_stability
+    name: Growth Stability
+    kind: fundamental
+    family: growth
+    summary: How straight a line the reported series has followed, from 0 to 1.
+    description: >-
+      Fitted in log space, so a company compounding at a steady 10 percent
+      scores 1 whatever its size. A company with the same total growth
+      delivered in one jump scores lower. That is what separates this from the
+      inverse of a standard deviation, which would rank a jump and a steady
+      climb by dispersion alone and miss which of the two is a business.
+    formulas:
+      - latex: 'y_i = \ln X_{t-n+1+i}, \qquad R^2 = 1 - \frac{\sum_i (y_i - \hat{y}_i)^2}{\sum_i (y_i - \bar{y})^2}'
+        note: Undefined where any value in the window is not positive.
+    parameters:
+      - id: item
+        name: Reported line
+        dtype: str
+        default: revenue
+        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend]
+        description: Which line of the accounts the stability is measured on.
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: years
+        name: Periods
+        dtype: int
+        default: 5
+        minimum: 3
+        maximum: 100
+        description: How many rows the line is fitted through.
+    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid]
+    unit: ratio
+    direction: higher
+    period: annual
+    output_range: [0, 1]
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 13."
+    implementation: factorbase.factors.fundamentals.growth:growth_stability
+    status: stable
+
+  - id: growth_consistency
+    name: Growth Consistency
+    kind: fundamental
+    family: growth
+    summary: Mean growth rate divided by its own standard deviation.
+    description: >-
+      A company growing 8 percent every year and one averaging 8 percent
+      between -20 and +40 are different businesses. This says which is which;
+      the mean on its own never does. Dimensionless, so it ranks across
+      industries.
+    formulas:
+      - latex: 'GC_t = \frac{\overline{g}_t(n)}{s\left( g_t(n) \right)}'
+    parameters:
+      - id: item
+        name: Reported line
+        dtype: str
+        default: revenue
+        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend]
+        description: Which line of the accounts the growth is measured on.
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: years
+        name: Periods
+        dtype: int
+        default: 5
+        minimum: 2
+        maximum: 100
+        description: How many growth rates the mean and dispersion span.
+    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid]
+    unit: ratio
+    direction: higher
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 13."
+    implementation: factorbase.factors.fundamentals.growth:growth_consistency
+    status: stable
+
+  - id: absolute_growth
+    name: Absolute Growth
+    kind: fundamental
+    family: growth
+    summary: Change of a reported line in currency over n periods.
+    description: >-
+      In currency rather than percent, which makes it useless across
+      instruments and useful within one: it is the number that says whether a
+      percentage growth rate was earned on a base worth caring about. Thirty
+      percent on two million and three percent on two billion rank the other
+      way round here, and both orderings are right for different questions.
+    formulas:
+      - latex: '\Delta X_t(n) = X_t - X_{t-n}'
+    parameters:
+      - id: item
+        name: Reported line
+        dtype: str
+        default: revenue
+        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend]
+        description: Which line of the accounts the change is measured on.
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 5
+        minimum: 1
+        maximum: 1000
+        description: How many rows back the comparison point sits.
+    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid]
+    unit: currency
+    direction: higher
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 13."
+    implementation: factorbase.factors.fundamentals.growth:absolute_growth
+    status: stable
+
+  - id: sequential_growth
+    name: Sequential Growth
+    kind: fundamental
+    family: growth
+    summary: Percentage change against the immediately preceding quarter.
+    description: >-
+      Quarter on quarter, not against the year-ago quarter. It picks up an
+      inflection roughly a year before the year-on-year figure does, and it is
+      worthless for a seasonal business, where the swing between quarters is
+      the season rather than the trend.
+    formulas:
+      - latex: 'sg_t = \left( \frac{X_t}{X_{t-1}} - 1 \right) \cdot 100'
+        note: Quarterly rows only.
+    parameters: &quarterly_growth
+      - id: item
+        name: Reported line
+        dtype: str
+        default: revenue
+        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend]
+        description: Which line of the accounts the growth is measured on.
+      - id: allow_negative_base
+        name: Allow a negative base
+        dtype: bool
+        default: false
+        description: Return the number even where the starting value was not positive.
+    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid]
+    unit: percent
+    direction: higher
+    period: quarterly
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 13."
+    implementation: factorbase.factors.fundamentals.growth:sequential_growth
+    status: stable
+
+  - id: year_on_year_quarterly_growth
+    name: Year-on-Year Quarterly Growth
+    kind: fundamental
+    family: growth
+    summary: Percentage change against the same quarter a year earlier.
+    description: >-
+      The seasonal counterpart to sequential growth. Comparing like quarters
+      removes the season and, with it, the ability to see a turn inside the
+      year. The two entries exist because reading only one of them is how a
+      seasonal business gets mistaken for a growing one and back again.
+    formulas:
+      - latex: 'yg_t = \left( \frac{X_t}{X_{t-4}} - 1 \right) \cdot 100'
+        note: Quarterly rows only.
+    parameters: *quarterly_growth
+    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid]
+    unit: percent
+    direction: higher
+    period: quarterly
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 13."
+    implementation: factorbase.factors.fundamentals.growth:year_on_year_quarterly_growth
+    status: stable

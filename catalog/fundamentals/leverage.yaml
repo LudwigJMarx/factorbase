@@ -1,0 +1,384 @@
+# Debt, coverage and liquidity.
+
+factors:
+  - id: equity_ratio
+    name: Equity Ratio
+    kind: fundamental
+    family: leverage
+    summary: Shareholders' equity over total assets, in percent.
+    description: >-
+      How much of the balance sheet belongs to the owners. The single most
+      informative leverage number because it needs no earnings, no cash flow
+      and no judgement about what counts as debt.
+    formulas:
+      - latex: 'ER_t = \frac{Equity_t}{Assets_t} \cdot 100'
+    parameters: &basis_only
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+    inputs: [total_equity, total_assets]
+    unit: percent
+    direction: higher
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 9."
+    implementation: factorbase.factors.fundamentals.leverage:equity_ratio
+    status: stable
+
+  - id: liabilities_ratio
+    name: Liabilities Ratio
+    kind: fundamental
+    family: leverage
+    summary: Total liabilities over total assets, in percent.
+    description: >-
+      The complement of the equity ratio wherever there are no minority
+      interests, and worth having separately because the two stop summing to
+      100 exactly where a group structure gets interesting.
+    formulas:
+      - latex: 'LR_t = \frac{Liabilities_t}{Assets_t} \cdot 100'
+    parameters: *basis_only
+    inputs: [total_liabilities, total_assets]
+    unit: percent
+    direction: lower
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 9."
+    implementation: factorbase.factors.fundamentals.leverage:liabilities_ratio
+    status: stable
+
+  - id: debt_to_assets
+    name: Debt to Assets
+    kind: fundamental
+    family: leverage
+    summary: Interest-bearing debt over total assets, in percent.
+    description: >-
+      Debt, not liabilities. Trade payables are a liability and are not debt;
+      conflating the two makes a retailer with fast supplier turnover look
+      leveraged when its position is the opposite. The gap between this and the
+      liabilities ratio is the operating float the business runs on.
+    formulas:
+      - latex: 'DA_t = \frac{Debt_t}{Assets_t} \cdot 100'
+    parameters: *basis_only
+    inputs: [total_debt, total_assets]
+    unit: percent
+    direction: lower
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 9."
+    implementation: factorbase.factors.fundamentals.leverage:debt_to_assets
+    status: stable
+
+  - id: debt_to_equity
+    name: Debt to Equity
+    kind: fundamental
+    family: leverage
+    summary: Interest-bearing debt over equity, in percent.
+    description: >-
+      Undefined on negative equity rather than negative. A company with more
+      liabilities than assets is not conservatively financed, which is exactly
+      how the negative reading would sort.
+    formulas:
+      - latex: 'DE_t = \frac{Debt_t}{Equity_t} \cdot 100, \qquad Equity_t > 0'
+    parameters: *basis_only
+    inputs: [total_debt, total_equity]
+    unit: percent
+    direction: lower
+    period: annual
+    aliases: [financial_leverage]
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 9."
+    implementation: factorbase.factors.fundamentals.leverage:debt_to_equity
+    status: stable
+
+  - id: net_debt_to_ebitda
+    name: Net Debt to EBITDA
+    kind: fundamental
+    family: leverage
+    summary: Debt less cash over EBITDA, as a multiple.
+    description: >-
+      The covenant measure, and the one a lender actually watches. Negative
+      readings are kept here rather than blanked: a company holding more cash
+      than debt has negative net debt, and that is information, not an error.
+      The denominator still has to be positive, because a multiple of a loss is
+      not a multiple.
+    formulas:
+      - latex: 'NDE_t = \frac{Debt_t - Cash_t}{EBITDA_t}, \qquad EBITDA_t > 0'
+    parameters: *basis_only
+    inputs: [total_debt, cash_and_equivalents, ebitda]
+    unit: ratio
+    direction: lower
+    period: annual
+    references:
+      - "Koller, T., Goedhart, M. and Wessels, D. (2020). Valuation, 7th ed., ch. 22."
+    implementation: factorbase.factors.fundamentals.leverage:net_debt_to_ebitda
+    status: stable
+
+  - id: current_ratio
+    name: Current Ratio
+    kind: fundamental
+    family: liquidity
+    summary: Current assets over current liabilities, as a multiple.
+    description: >-
+      Whether the next twelve months of obligations are covered by the next
+      twelve months of assets. Crude, and crude in a known direction: it counts
+      inventory that may not sell at book value as though it were cash.
+    formulas:
+      - latex: 'CR_t = \frac{CurrentAssets_t}{CurrentLiabilities_t}'
+    parameters: *basis_only
+    inputs: [current_assets, current_liabilities]
+    unit: ratio
+    direction: higher
+    period: annual
+    output_range: [0, null]
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 9."
+    implementation: factorbase.factors.fundamentals.leverage:current_ratio
+    status: stable
+
+  - id: quick_ratio
+    name: Quick Ratio
+    kind: fundamental
+    family: liquidity
+    summary: Current assets less inventory, over current liabilities.
+    description: >-
+      The current ratio with the inventory taken out, which is the whole point
+      of having both. For a business whose stock turns in days the two are
+      nearly identical; for one whose stock sits for a year they are not, and
+      the gap is the measure.
+    formulas:
+      - latex: 'QR_t = \frac{CurrentAssets_t - Inventory_t}{CurrentLiabilities_t}'
+    parameters: *basis_only
+    inputs: [current_assets, inventory, current_liabilities]
+    unit: ratio
+    direction: higher
+    period: annual
+    output_range: [0, null]
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 9."
+    implementation: factorbase.factors.fundamentals.leverage:quick_ratio
+    status: stable
+
+  - id: cash_ratio
+    name: Cash Ratio
+    kind: fundamental
+    family: liquidity
+    summary: Cash over current liabilities, as a multiple.
+    description: >-
+      The strictest of the three: only what is already cash counts. A reading
+      above 1 says the company could settle a year of obligations this
+      afternoon, which for most businesses is a sign of an idle balance sheet
+      rather than of prudence.
+    formulas:
+      - latex: 'CashR_t = \frac{Cash_t}{CurrentLiabilities_t}'
+    parameters: *basis_only
+    inputs: [cash_and_equivalents, current_liabilities]
+    unit: ratio
+    direction: higher
+    period: annual
+    output_range: [0, null]
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 9."
+    implementation: factorbase.factors.fundamentals.leverage:cash_ratio
+    status: stable
+
+  - id: interest_coverage
+    name: Interest Coverage
+    kind: fundamental
+    family: leverage
+    summary: Operating profit or operating cash flow over interest expense.
+    description: >-
+      How many times over the business earns what it owes its lenders each
+      year. A company with no interest expense has infinite coverage, which is
+      true and unrankable; it returns NaN here, and a NaN in this column reads
+      as "no debt service", not as missing data.
+
+      The cash-flow basis is the stricter of the two and the one that catches a
+      company whose operating profit is accounting rather than cash.
+    formulas:
+      - latex: 'IC_t = \frac{Base_t}{InterestExpense_t}'
+        note: Base is EBIT or operating cash flow, whichever the parameter selects.
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: basis
+        name: Basis
+        dtype: str
+        default: ebit
+        choices: [ebit, operating_cash_flow]
+        description: What the interest is covered out of.
+    inputs: [ebit, operating_cash_flow, interest_expense]
+    unit: ratio
+    direction: higher
+    period: annual
+    references:
+      - "Koller, T., Goedhart, M. and Wessels, D. (2020). Valuation, 7th ed., ch. 22."
+    implementation: factorbase.factors.fundamentals.leverage:interest_coverage
+    status: stable
+
+  - id: debt_coverage
+    name: Debt Coverage
+    kind: fundamental
+    family: leverage
+    summary: Cash flow, operating profit or revenue over total debt, in percent.
+    description: >-
+      How much of the debt a year of the business would repay. Deliberately the
+      inverse of the usual debt-to-cash-flow multiple, because it stays finite
+      as debt approaches zero and the multiple does not: a debt-free company
+      gets a very large number here and an undefined one there, and only the
+      first can be ranked.
+    formulas:
+      - latex: 'DC_t = \frac{Base_t}{Debt_t} \cdot 100'
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: basis
+        name: Basis
+        dtype: str
+        default: operating_cash_flow
+        choices: [operating_cash_flow, ebit, revenue]
+        description: What the debt is covered out of.
+    inputs: [operating_cash_flow, ebit, revenue, total_debt]
+    unit: percent
+    direction: higher
+    period: annual
+    references:
+      - "Koller, T., Goedhart, M. and Wessels, D. (2020). Valuation, 7th ed., ch. 22."
+    implementation: factorbase.factors.fundamentals.leverage:debt_coverage
+    status: stable
+
+  - id: cash_flow_to_debt
+    name: Free Cash Flow to Debt
+    kind: fundamental
+    family: leverage
+    summary: Free cash flow over total debt, in percent.
+    description: >-
+      The same question as debt coverage, asked of the cash that is genuinely
+      free rather than of the cash from operations. Lower by construction for
+      any business that has to keep investing, which is the distinction worth
+      having.
+    formulas:
+      - latex: 'FCFD_t = \frac{FCF_t}{Debt_t} \cdot 100'
+    parameters: *basis_only
+    inputs: [operating_cash_flow, capital_expenditure, free_cash_flow, total_debt]
+    unit: percent
+    direction: higher
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 10."
+    implementation: factorbase.factors.fundamentals.leverage:cash_flow_to_debt
+    status: stable
+
+  - id: long_term_debt_to_working_capital
+    name: Long-Term Debt to Working Capital
+    kind: fundamental
+    family: leverage
+    summary: Long-term debt over net working capital, as a multiple.
+    description: >-
+      Undefined on negative working capital rather than negative. A company
+      funding itself on its suppliers runs negative working capital by design,
+      and the negative ratio would rank it as conservatively financed, which is
+      the opposite of what the number is for.
+    formulas:
+      - latex: 'LTDWC_t = \frac{LongTermDebt_t}{CurrentAssets_t - CurrentLiabilities_t}, \qquad NWC_t > 0'
+    parameters: *basis_only
+    inputs: [long_term_debt, current_assets, current_liabilities]
+    unit: ratio
+    direction: lower
+    period: annual
+    references:
+      - "Graham, B. and Dodd, D. (1934). Security Analysis, ch. 40."
+    implementation: factorbase.factors.fundamentals.leverage:long_term_debt_to_working_capital
+    status: stable
+
+  - id: ohlson_o_score
+    name: Ohlson O-Score
+    kind: fundamental
+    family: distress
+    summary: A nine-term bankruptcy score. Higher means more distressed.
+    description: >-
+      The coefficients are Ohlson's, fitted on US filings between 1970 and
+      1976, and they have not been refitted since. Treat the output as an
+      ordering of relative distress inside a comparable universe, not as a
+      calibrated statement about any individual company.
+
+      The size term divides total assets by a price-index level. The parameter
+      defaults to 1, which leaves assets in nominal currency and makes that
+      term comparable only within one point in time. Supplying a real deflator
+      is the caller's job; the alternative was to bury a constant in the code
+      and let the score drift silently with inflation.
+    formulas:
+      - latex: 'O_t = -1.32 - 0.407 \ln\!\frac{Assets_t}{d} + 6.03 \frac{Liab_t}{Assets_t} - 1.43 \frac{NWC_t}{Assets_t} + 0.0757 \frac{CL_t}{CA_t}'
+      - latex: '\quad - 1.72 \, \mathbb{1}[Liab_t > Assets_t] - 2.37 \frac{NI_t}{Assets_t} - 1.83 \frac{OCF_t}{Liab_t}'
+      - latex: '\quad + 0.285 \, \mathbb{1}[NI_t < 0 \wedge NI_{t-1} < 0] - 0.521 \frac{NI_t - NI_{t-1}}{|NI_t| + |NI_{t-1}|}'
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: gnp_deflator
+        name: Price index level
+        dtype: float
+        default: 1.0
+        minimum: 0.0001
+        maximum: 1000000.0
+        description: >-
+          Divides total assets in the size term. The default of 1 leaves assets
+          nominal, which is comparable within a date and not across dates.
+    inputs: [total_assets, total_liabilities, current_assets, current_liabilities, net_income, operating_cash_flow]
+    unit: ratio
+    direction: lower
+    period: annual
+    references:
+      - "Ohlson, J. A. (1980). Financial Ratios and the Probabilistic Prediction of Bankruptcy. Journal of Accounting Research 18(1)."
+    implementation: factorbase.factors.fundamentals.leverage:ohlson_o_score
+    status: stable
+
+  - id: ohlson_bankruptcy_probability
+    name: Ohlson Bankruptcy Probability
+    kind: fundamental
+    family: distress
+    summary: The O-score put through a logistic function, in percent.
+    description: >-
+      Reported because the original paper reports it, and carrying the same
+      warning: the calibration is from a 1970s US sample, so the number is not
+      a probability anyone should act on as one. The logistic transform is
+      monotone, so the ordering is identical to the score's and nothing is
+      gained by ranking on this instead.
+    formulas:
+      - latex: 'P_t = \frac{1}{1 + e^{-O_t}} \cdot 100'
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: gnp_deflator
+        name: Price index level
+        dtype: float
+        default: 1.0
+        minimum: 0.0001
+        maximum: 1000000.0
+        description: Passed through to the score.
+    inputs: [total_assets, total_liabilities, current_assets, current_liabilities, net_income, operating_cash_flow]
+    unit: percent
+    direction: lower
+    period: annual
+    output_range: [0, 100]
+    references:
+      - "Ohlson, J. A. (1980). Financial Ratios and the Probabilistic Prediction of Bankruptcy. Journal of Accounting Research 18(1)."
+    implementation: factorbase.factors.fundamentals.leverage:ohlson_bankruptcy_probability
+    status: stable

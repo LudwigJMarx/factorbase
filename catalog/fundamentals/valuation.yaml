@@ -1,0 +1,456 @@
+# Multiples and yields.
+#
+# Every entry here needs a market series as well as the accounts. It is read as
+# of each reporting date, last value carried forward, which is the only sound
+# join between something that changes daily and something that changes four
+# times a year. Doing it inside the factor rather than leaving it to the caller
+# is what stops one ratio being built on a market value a day after the accounts
+# and another on one a quarter after.
+
+factors:
+  - id: market_capitalisation
+    name: Market Capitalisation
+    kind: fundamental
+    family: size
+    summary: The market series read at each reporting date.
+    description: >-
+      Size as a factor in its own right, and the as-of join every other
+      market-based entry here uses, exposed so that a universe filter and a
+      valuation ratio cannot disagree about which market value they meant.
+    formulas:
+      - latex: 'MC_t = Market_{s}, \quad s = \max\{ u \le t : Market_u \text{ exists} \}'
+    inputs: [market_cap]
+    unit: currency
+    direction: undefined
+    period: point_in_time
+    output_range: [0, null]
+    references:
+      - "Fama, E. F. and French, K. R. (1992). The Cross-Section of Expected Stock Returns. Journal of Finance 47(2)."
+    implementation: factorbase.factors.fundamentals.size:market_capitalisation
+    status: stable
+
+  - id: enterprise_value
+    name: Enterprise Value
+    kind: fundamental
+    family: size
+    summary: Market capitalisation plus total debt less cash.
+    description: >-
+      What it would cost to buy the whole business free of its financing. The
+      figure the enterprise multiples divide, and the reason they can be
+      compared across companies with different amounts of debt.
+    formulas:
+      - latex: 'EV_t = MC_t + Debt_t - Cash_t'
+    inputs: [market_cap, total_debt, cash_and_equivalents]
+    unit: currency
+    direction: undefined
+    period: point_in_time
+    references:
+      - "Koller, T., Goedhart, M. and Wessels, D. (2020). Valuation, 7th ed., ch. 18."
+    implementation: factorbase.factors.fundamentals.valuation:enterprise_value
+    status: stable
+
+  - id: price_to_earnings
+    name: Price to Earnings
+    kind: fundamental
+    family: valuation
+    summary: Market capitalisation over net income.
+    description: >-
+      The multiple everyone quotes and the one that behaves worst. It is
+      undefined at zero earnings, explodes either side of it, and goes negative
+      on a loss, where it sorts below every profitable company in the universe.
+      A screen ranking ascending on it and not handling that picks the biggest
+      losses first.
+
+      The default returns NaN on a loss. `allow_negative` returns the number
+      for callers who have their own handling, and the entry names what they
+      are taking on. Where the ratio is only needed for ranking, the earnings
+      yield is the same information without any of this.
+    formulas:
+      - latex: 'PE_t = \frac{MC_t}{NetIncome_t}, \qquad NetIncome_t > 0'
+    parameters: &market_period
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: ttm
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: average_years
+        name: Averaging periods
+        dtype: int
+        default: 1
+        minimum: 1
+        maximum: 100
+        description: Mean over this many consecutive periods.
+    inputs: [market_cap, net_income]
+    unit: ratio
+    direction: lower
+    period: ttm
+    aliases: [pe_ratio]
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 6."
+    implementation: factorbase.factors.fundamentals.valuation:price_to_earnings
+    status: stable
+
+  - id: price_to_book
+    name: Price to Book
+    kind: fundamental
+    family: valuation
+    summary: Market capitalisation over shareholders' equity.
+    description: >-
+      The oldest value factor and the one most damaged by how accounting has
+      changed. Book value counts factories and not brands, and treats research
+      as an expense rather than an asset, so a software company can trade at
+      twenty times book while owning something more durable than a steel mill
+      at one.
+    formulas:
+      - latex: 'PB_t = \frac{MC_t}{Equity_t}, \qquad Equity_t > 0'
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: average_years
+        name: Averaging periods
+        dtype: int
+        default: 1
+        minimum: 1
+        maximum: 100
+        description: Mean over this many consecutive periods.
+    inputs: [market_cap, total_equity]
+    unit: ratio
+    direction: lower
+    period: annual
+    aliases: [pb_ratio]
+    references:
+      - "Fama, E. F. and French, K. R. (1992). The Cross-Section of Expected Stock Returns. Journal of Finance 47(2)."
+    implementation: factorbase.factors.fundamentals.valuation:price_to_book
+    status: stable
+
+  - id: price_to_sales
+    name: Price to Sales
+    kind: fundamental
+    family: valuation
+    summary: Market capitalisation over revenue.
+    description: >-
+      The one multiple that is almost always defined, because revenue is rarely
+      negative. That is its use and its weakness in the same sentence: it ranks
+      a company with no profits identically whether the absence is a bad year
+      or the business model.
+    formulas:
+      - latex: 'PS_t = \frac{MC_t}{Revenue_t}'
+    parameters: *market_period
+    inputs: [market_cap, revenue]
+    unit: ratio
+    direction: lower
+    period: ttm
+    aliases: [ps_ratio]
+    references:
+      - "O'Shaughnessy, J. P. (2011). What Works on Wall Street, 4th ed., ch. 6."
+    implementation: factorbase.factors.fundamentals.valuation:price_to_sales
+    status: stable
+
+  - id: price_to_free_cash_flow
+    name: Price to Free Cash Flow
+    kind: fundamental
+    family: valuation
+    summary: Market capitalisation over free cash flow.
+    description: >-
+      Harder to manage than earnings and therefore harder to flatter, at the
+      cost of being far noisier: a single year of heavy capital spending
+      halves free cash flow without telling you anything about the business.
+      Read it averaged, or read it next to the earnings multiple.
+    formulas:
+      - latex: 'FCF_t = OperatingCashFlow_t - CapEx_t'
+        note: Capital expenditure is a positive number, per the data contract.
+      - latex: 'PFCF_t = \frac{MC_t}{FCF_t}, \qquad FCF_t > 0'
+    parameters: *market_period
+    inputs: [market_cap, operating_cash_flow, capital_expenditure, free_cash_flow]
+    unit: ratio
+    direction: lower
+    period: ttm
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 10."
+    implementation: factorbase.factors.fundamentals.valuation:price_to_free_cash_flow
+    status: stable
+
+  - id: earnings_yield
+    name: Earnings Yield
+    kind: fundamental
+    family: valuation
+    summary: Net income over market capitalisation, in percent.
+    description: >-
+      The inverse of the price-to-earnings ratio and the better behaved of the
+      pair. It passes through zero smoothly where the multiple goes to
+      infinity, so it can be averaged, ranked and combined with other factors
+      without a single special case. Anywhere a screen only needs an ordering,
+      this is the one to use.
+    formulas:
+      - latex: 'EY_t = \frac{NetIncome_t}{MC_t} \cdot 100'
+    parameters: *market_period
+    inputs: [market_cap, net_income]
+    unit: percent
+    direction: higher
+    period: ttm
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 6."
+    implementation: factorbase.factors.fundamentals.valuation:earnings_yield
+    status: stable
+
+  - id: free_cash_flow_yield
+    name: Free Cash Flow Yield
+    kind: fundamental
+    family: valuation
+    summary: Free cash flow over market capitalisation, in percent.
+    description: >-
+      What the business would pay out if it paid out everything it did not need
+      to reinvest. Well behaved around zero for the same reason the earnings
+      yield is, and subject to the same capital-spending noise as the
+      price-to-free-cash-flow multiple.
+    formulas:
+      - latex: 'FCFY_t = \frac{FCF_t}{MC_t} \cdot 100'
+    parameters: *market_period
+    inputs: [market_cap, operating_cash_flow, capital_expenditure, free_cash_flow]
+    unit: percent
+    direction: higher
+    period: ttm
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 10."
+    implementation: factorbase.factors.fundamentals.valuation:free_cash_flow_yield
+    status: stable
+
+  - id: ev_to_ebit
+    name: EV to EBIT
+    kind: fundamental
+    family: valuation
+    summary: Enterprise value over operating income.
+    description: >-
+      Preferred over price-to-earnings when leverage differs across the
+      comparison set: numerator and denominator both sit before financing, so
+      the capital structure cancels instead of distorting. Two identical
+      businesses, one funded with debt and one without, get the same reading
+      here and very different ones on a price multiple.
+    formulas:
+      - latex: 'EVEBIT_t = \frac{EV_t}{EBIT_t}, \qquad EBIT_t > 0'
+    parameters: &market_period_only
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: ttm
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+    inputs: [market_cap, total_debt, cash_and_equivalents, ebit]
+    unit: ratio
+    direction: lower
+    period: ttm
+    references:
+      - "Koller, T., Goedhart, M. and Wessels, D. (2020). Valuation, 7th ed., ch. 18."
+    implementation: factorbase.factors.fundamentals.valuation:ev_to_ebit
+    status: stable
+
+  - id: ev_to_ebitda
+    name: EV to EBITDA
+    kind: fundamental
+    family: valuation
+    summary: Enterprise value over EBITDA.
+    description: >-
+      The multiple most used in transactions, because it is the one least
+      affected by accounting choices about depreciation. That same property
+      makes it flatter capital-intensive businesses, whose real cost of
+      staying in business is precisely the depreciation it ignores.
+    formulas:
+      - latex: 'EVEBITDA_t = \frac{EV_t}{EBITDA_t}, \qquad EBITDA_t > 0'
+    parameters: *market_period_only
+    inputs: [market_cap, total_debt, cash_and_equivalents, ebitda]
+    unit: ratio
+    direction: lower
+    period: ttm
+    references:
+      - "Koller, T., Goedhart, M. and Wessels, D. (2020). Valuation, 7th ed., ch. 18."
+    implementation: factorbase.factors.fundamentals.valuation:ev_to_ebitda
+    status: stable
+
+  - id: ev_to_sales
+    name: EV to Sales
+    kind: fundamental
+    family: valuation
+    summary: Enterprise value over revenue.
+    description: >-
+      The enterprise counterpart of price-to-sales, and the version to use when
+      the comparison set includes companies carrying real debt. Almost always
+      defined, and almost always in need of a margin alongside it.
+    formulas:
+      - latex: 'EVS_t = \frac{EV_t}{Revenue_t}'
+    parameters: *market_period_only
+    inputs: [market_cap, total_debt, cash_and_equivalents, revenue]
+    unit: ratio
+    direction: lower
+    period: ttm
+    references:
+      - "Koller, T., Goedhart, M. and Wessels, D. (2020). Valuation, 7th ed., ch. 18."
+    implementation: factorbase.factors.fundamentals.valuation:ev_to_sales
+    status: stable
+
+  - id: ev_to_free_cash_flow
+    name: EV to Free Cash Flow
+    kind: fundamental
+    family: valuation
+    summary: Enterprise value over free cash flow.
+    description: >-
+      Cash against the whole capital structure. The strictest of the multiples
+      here and the noisiest, since it combines the capital-spending swings of
+      free cash flow with a denominator that must be positive to mean anything.
+    formulas:
+      - latex: 'EVFCF_t = \frac{EV_t}{FCF_t}, \qquad FCF_t > 0'
+    parameters: *market_period_only
+    inputs: [market_cap, total_debt, cash_and_equivalents, operating_cash_flow, capital_expenditure, free_cash_flow]
+    unit: ratio
+    direction: lower
+    period: ttm
+    references:
+      - "Koller, T., Goedhart, M. and Wessels, D. (2020). Valuation, 7th ed., ch. 18."
+    implementation: factorbase.factors.fundamentals.valuation:ev_to_free_cash_flow
+    status: stable
+
+  - id: magic_formula_earnings_yield
+    name: Earnings Yield (Greenblatt)
+    kind: fundamental
+    family: valuation
+    summary: Operating income over enterprise value, in percent.
+    description: >-
+      Greenblatt's earnings yield: EBIT over enterprise value, not net income
+      over market capitalisation. Both halves sit before financing, so two
+      companies with identical operations and different debt loads rank
+      together instead of apart. The other half of his pair is the return on
+      capital in the profitability family.
+    formulas:
+      - latex: 'MFEY_t = \frac{EBIT_t}{EV_t} \cdot 100'
+    parameters: *market_period_only
+    inputs: [market_cap, total_debt, cash_and_equivalents, ebit]
+    unit: percent
+    direction: higher
+    period: ttm
+    references:
+      - "Greenblatt, J. (2006). The Little Book That Beats the Market, appendix."
+    implementation: factorbase.factors.fundamentals.valuation:magic_formula_earnings_yield
+    status: stable
+
+  - id: peg_ratio
+    name: PEG Ratio
+    kind: fundamental
+    family: valuation
+    summary: Price-to-earnings divided by the earnings growth rate.
+    description: >-
+      Undefined wherever growth is not positive, which is most of the time for
+      most companies and is why the measure is far quieter in practice than its
+      reputation suggests. A negative PEG, from a negative growth rate, reads
+      as cheap and means the opposite, so those readings are blanked out here
+      rather than ranked.
+
+      The growth rate is historical. Using a forecast, as the original does,
+      replaces one problem with a larger one.
+    formulas:
+      - latex: 'g_t = \left( \frac{NetIncome_t}{NetIncome_{t-k}} - 1 \right) \cdot 100, \qquad g_t > 0'
+      - latex: 'PEG_t = \frac{PE_t}{g_t}'
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: ttm
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: growth_periods
+        name: Growth periods
+        dtype: int
+        default: 4
+        minimum: 1
+        maximum: 100
+        description: How many rows back the growth comparison point sits.
+    inputs: [market_cap, net_income]
+    unit: ratio
+    direction: lower
+    period: ttm
+    references:
+      - "Lynch, P. (1989). One Up On Wall Street, ch. 13."
+    implementation: factorbase.factors.fundamentals.valuation:peg_ratio
+    status: stable
+
+  - id: dividend_yield
+    name: Dividend Yield
+    kind: fundamental
+    family: valuation
+    summary: Dividends over market capitalisation, in percent.
+    description: >-
+      `basis` picks between what was paid over the period and what has been
+      declared for it. The difference is up to a year of timing and it is
+      systematic rather than noise: a company that has already announced a cut
+      still shows the old yield on the paid basis, which is exactly the
+      situation a yield screen is most likely to walk into.
+    formulas:
+      - latex: 'DY_t = \frac{Dividends_t}{MC_t} \cdot 100'
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: average_years
+        name: Averaging periods
+        dtype: int
+        default: 1
+        minimum: 1
+        maximum: 100
+        description: Mean over this many consecutive periods.
+      - id: basis
+        name: Basis
+        dtype: str
+        default: paid
+        choices: [paid, declared]
+        description: Dividends actually paid in the period, or announced for it.
+    inputs: [market_cap, dividends_paid, dividend_per_share_paid, dividend_per_share_declared, shares_outstanding]
+    unit: percent
+    direction: higher
+    period: annual
+    output_range: [0, null]
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 4."
+    implementation: factorbase.factors.fundamentals.valuation:dividend_yield
+    status: stable
+
+  - id: payout_ratio
+    name: Payout Ratio
+    kind: fundamental
+    family: valuation
+    summary: Dividends over net income, in percent.
+    description: >-
+      How much of what was earned was handed out. Undefined on a loss rather
+      than negative: a company paying a dividend out of reserves in a loss year
+      has a payout ratio that is not meaningfully a number, and the negative
+      reading it would otherwise produce sorts as though it were retaining
+      everything.
+    formulas:
+      - latex: 'PR_t = \frac{Dividends_t}{NetIncome_t} \cdot 100, \qquad NetIncome_t > 0'
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: average_years
+        name: Averaging periods
+        dtype: int
+        default: 1
+        minimum: 1
+        maximum: 100
+        description: Mean over this many consecutive periods.
+    inputs: [dividends_paid, net_income]
+    unit: percent
+    direction: undefined
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 4."
+    implementation: factorbase.factors.fundamentals.valuation:payout_ratio
+    status: stable

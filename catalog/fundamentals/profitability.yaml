@@ -1,0 +1,446 @@
+# Margins and returns on capital.
+#
+# The annual, trailing-twelve-month and multi-year-average readings of a ratio
+# are parameters here, not separate entries. One formula, one place to fix it.
+# The `period` field below states the default basis; the `period` parameter
+# changes it.
+
+factors:
+  - id: gross_margin
+    name: Gross Margin
+    kind: fundamental
+    family: profitability
+    summary: Gross profit over revenue, in percent.
+    description: >-
+      What is left of a sale after the direct cost of producing it. The
+      cleanest read on pricing power there is, because it sits above every
+      discretionary cost: a company can cut research or advertising to defend
+      an operating margin for a year or two, and it cannot do the same here.
+    formulas:
+      - latex: 'GM_t = \frac{GrossProfit_t}{Revenue_t} \cdot 100'
+    parameters: &period_and_average
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: average_years
+        name: Averaging periods
+        dtype: int
+        default: 1
+        minimum: 1
+        maximum: 100
+        description: >-
+          Mean over this many consecutive periods. One is the single-period
+          reading. The average requires every period to be present, so a
+          five-year mean is never computed from three years and passed off as
+          one.
+    inputs: [gross_profit, revenue]
+    unit: percent
+    direction: higher
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 11."
+    implementation: factorbase.factors.fundamentals.profitability:gross_margin
+    status: stable
+
+  - id: ebit_margin
+    name: EBIT Margin
+    kind: fundamental
+    family: profitability
+    summary: Operating income over revenue, in percent.
+    description: >-
+      Profitability of the operating business, before financing and tax. The
+      margin to use when comparing companies with different capital
+      structures, because neither half of it depends on how the business was
+      funded.
+    formulas:
+      - latex: 'EBITM_t = \frac{EBIT_t}{Revenue_t} \cdot 100'
+    parameters: *period_and_average
+    inputs: [ebit, revenue]
+    unit: percent
+    direction: higher
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 11."
+    implementation: factorbase.factors.fundamentals.profitability:ebit_margin
+    status: stable
+
+  - id: ebitda_margin
+    name: EBITDA Margin
+    kind: fundamental
+    family: profitability
+    summary: EBITDA over revenue, in percent.
+    description: >-
+      The operating margin with depreciation added back. Useful for comparing
+      businesses whose assets were bought at very different times, and
+      misleading as a proxy for cash: the depreciation being added back is a
+      real cost that falls due again when the assets are replaced.
+    formulas:
+      - latex: 'EBITDAM_t = \frac{EBITDA_t}{Revenue_t} \cdot 100'
+    parameters: *period_and_average
+    inputs: [ebitda, revenue]
+    unit: percent
+    direction: higher
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 11."
+    implementation: factorbase.factors.fundamentals.profitability:ebitda_margin
+    status: stable
+
+  - id: pretax_margin
+    name: Pretax Margin
+    kind: fundamental
+    family: profitability
+    summary: Pretax income over revenue, in percent.
+    description: >-
+      After financing, before tax. The gap between this and the EBIT margin is
+      what the debt costs; the gap between this and the net margin is what the
+      tax authority takes. Both gaps are more stable than either margin, which
+      is what makes the three worth reading together.
+    formulas:
+      - latex: 'PTM_t = \frac{PretaxIncome_t}{Revenue_t} \cdot 100'
+    parameters: *period_and_average
+    inputs: [pretax_income, revenue]
+    unit: percent
+    direction: higher
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 11."
+    implementation: factorbase.factors.fundamentals.profitability:pretax_margin
+    status: stable
+
+  - id: net_margin
+    name: Net Margin
+    kind: fundamental
+    family: profitability
+    summary: Net income over revenue, in percent.
+    description: >-
+      What reaches the shareholder per unit of sales. The most quoted margin
+      and the least comparable: it carries the tax rate, the capital structure
+      and every one-off item of the period, so two companies running the same
+      business can differ by half on it for reasons that have nothing to do
+      with the business.
+    formulas:
+      - latex: 'NM_t = \frac{NetIncome_t}{Revenue_t} \cdot 100'
+    parameters: *period_and_average
+    inputs: [net_income, revenue]
+    unit: percent
+    direction: higher
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 11."
+    implementation: factorbase.factors.fundamentals.profitability:net_margin
+    status: stable
+
+  - id: net_margin_stability
+    name: Net Margin Stability
+    kind: fundamental
+    family: profitability
+    summary: Mean net margin divided by its own standard deviation.
+    description: >-
+      A company at 10 percent every year and one averaging 10 percent between
+      2 and 18 are not the same business. Dividing the level by the dispersion
+      says which is which in one number, and a mean on its own never does.
+
+      Dimensionless, so it compares across industries, and undefined for a
+      company whose margin never moved, where the dispersion is zero.
+    formulas:
+      - latex: 'NMS_t = \frac{\overline{NM}_t(n)}{s\left(NM_t(n)\right)}'
+        note: Both taken over n annual periods; s is the sample standard deviation.
+    parameters:
+      - id: years
+        name: Years
+        dtype: int
+        default: 5
+        minimum: 2
+        maximum: 100
+        description: How many annual periods the mean and dispersion span.
+    inputs: [net_income, revenue]
+    unit: ratio
+    direction: higher
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 13."
+    implementation: factorbase.factors.fundamentals.profitability:net_margin_stability
+    status: stable
+
+  - id: net_margin_change
+    name: Net Margin Change
+    kind: fundamental
+    family: profitability
+    summary: Change in net margin over n years, in percentage points.
+    description: >-
+      Percentage points, not percent, and the distinction decides the ranking.
+      A margin going from 2 to 4 percent has doubled, which is true and
+      useless: as a percentage change it outranks a company going from 20 to
+      30, which is the larger move by every measure the income statement cares
+      about.
+    formulas:
+      - latex: '\Delta NM_t(n) = NM_t - NM_{t-n}'
+    parameters:
+      - id: years
+        name: Years
+        dtype: int
+        default: 5
+        minimum: 1
+        maximum: 100
+        description: How many annual periods back the comparison point sits.
+    inputs: [net_income, revenue]
+    unit: percent
+    direction: higher
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 13."
+    implementation: factorbase.factors.fundamentals.profitability:net_margin_change
+    status: stable
+
+  - id: return_on_equity
+    name: Return on Equity
+    kind: fundamental
+    family: profitability
+    summary: Net income over shareholders' equity, in percent.
+    description: >-
+      What the business earns on the money shareholders left in it. High
+      readings come from two very different places, and the ratio does not
+      distinguish them: a genuinely profitable business, and a heavily
+      leveraged one with a small equity base. Read it next to the equity ratio
+      or not at all.
+
+      The denominator averages this period's and last period's equity by
+      default. Income accrues over a period while equity is a snapshot at its
+      end, and dividing a flow by a closing stock overstates the return of any
+      company that raised capital during the year.
+    formulas:
+      - latex: 'ROE_t = \frac{NetIncome_t}{\frac{1}{2}\left( Equity_t + Equity_{t-1} \right)} \cdot 100'
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: average_years
+        name: Averaging periods
+        dtype: int
+        default: 1
+        minimum: 1
+        maximum: 100
+        description: Mean over this many consecutive periods.
+      - id: average_balance
+        name: Average the balance
+        dtype: bool
+        default: true
+        description: >-
+          Divide by the mean of the opening and closing equity rather than by
+          the closing figure alone.
+    inputs: [net_income, total_equity]
+    unit: percent
+    direction: higher
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 12."
+    implementation: factorbase.factors.fundamentals.profitability:return_on_equity
+    status: stable
+
+  - id: return_on_assets
+    name: Return on Assets
+    kind: fundamental
+    family: profitability
+    summary: Net income over total assets, in percent.
+    description: >-
+      The same numerator as return on equity over a denominator that leverage
+      cannot shrink. It is therefore the blunter and the more comparable of the
+      two, and the gap between them is a direct read on how much debt is doing
+      the work.
+    formulas:
+      - latex: 'ROA_t = \frac{NetIncome_t}{\frac{1}{2}\left( Assets_t + Assets_{t-1} \right)} \cdot 100'
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: average_years
+        name: Averaging periods
+        dtype: int
+        default: 1
+        minimum: 1
+        maximum: 100
+        description: Mean over this many consecutive periods.
+      - id: average_balance
+        name: Average the balance
+        dtype: bool
+        default: true
+        description: Divide by the mean of the opening and closing assets.
+    inputs: [net_income, total_assets]
+    unit: percent
+    direction: higher
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 12."
+    implementation: factorbase.factors.fundamentals.profitability:return_on_assets
+    status: stable
+
+  - id: return_on_invested_capital
+    name: Return on Invested Capital
+    kind: fundamental
+    family: profitability
+    summary: After-tax operating profit over invested capital, in percent.
+    description: >-
+      NOPAT over capital, not net income over capital. The numerator has to be
+      the return to everyone who put capital in, because the denominator is
+      what all of them put in. Using net income mixes a figure measured after
+      interest with a base measured before it, and flatters leveraged companies
+      for exactly the wrong reason.
+
+      Invested capital is derived as equity plus debt less cash when the source
+      does not supply its own. Every data vendor defines it differently, so the
+      derivation is written down rather than assumed.
+
+      The tax rate is a flat assumption and a parameter. Deriving it from the
+      reported charge is more accurate in an ordinary year and badly wrong in a
+      year with a one-off credit, which is precisely the year a screen picks
+      up.
+    formulas:
+      - latex: 'NOPAT_t = EBIT_t \cdot (1 - \tau)'
+      - latex: 'IC_t = Equity_t + Debt_t - Cash_t'
+        note: Used only when the source frame has no invested_capital column of its own.
+      - latex: 'ROIC_t = \frac{NOPAT_t}{\frac{1}{2}\left( IC_t + IC_{t-1} \right)} \cdot 100'
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+      - id: average_years
+        name: Averaging periods
+        dtype: int
+        default: 1
+        minimum: 1
+        maximum: 100
+        description: Mean over this many consecutive periods.
+      - id: tax_rate
+        name: Tax rate
+        dtype: float
+        default: 25.0
+        minimum: 0.0
+        maximum: 100.0
+        description: Flat rate applied to operating profit, in percent.
+      - id: average_balance
+        name: Average the balance
+        dtype: bool
+        default: true
+        description: Divide by the mean of the opening and closing capital.
+    inputs: [ebit, total_equity, total_debt, cash_and_equivalents, invested_capital]
+    unit: percent
+    direction: higher
+    period: annual
+    aliases: [roic]
+    references:
+      - "Koller, T., Goedhart, M. and Wessels, D. (2020). Valuation, 7th ed., ch. 8."
+    implementation: factorbase.factors.fundamentals.profitability:return_on_invested_capital
+    status: stable
+
+  - id: magic_formula_return_on_capital
+    name: Return on Capital (Greenblatt)
+    kind: fundamental
+    family: profitability
+    summary: EBIT over net working capital plus net fixed assets, in percent.
+    description: >-
+      Greenblatt's version, and deliberately not the same thing as return on
+      invested capital. It is pretax and it leaves out goodwill, so it measures
+      what the operating business earns on the tangible capital it actually
+      needs, rather than on what a previous owner paid for it. A serial
+      acquirer therefore scores far higher here than on ROIC, and the gap
+      between the two is the acquisition premium.
+    formulas:
+      - latex: 'NWC_t = CurrentAssets_t - CurrentLiabilities_t'
+      - latex: 'NFA_t = Assets_t - CurrentAssets_t'
+      - latex: 'ROC_t = \frac{EBIT_t}{NWC_t + NFA_t} \cdot 100'
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+    inputs: [ebit, current_assets, current_liabilities, total_assets]
+    unit: percent
+    direction: higher
+    period: annual
+    references:
+      - "Greenblatt, J. (2006). The Little Book That Beats the Market, appendix."
+    implementation: factorbase.factors.fundamentals.profitability:magic_formula_return_on_capital
+    status: stable
+
+  - id: rule_of_forty
+    name: Rule of 40
+    kind: fundamental
+    family: profitability
+    summary: Revenue growth plus EBITDA margin, both in percent.
+    description: >-
+      Adding a growth rate to a margin is dimensionally odd and the measure is
+      used anyway, because the trade-off it encodes is real: a software company
+      can buy growth with margin or margin with growth, and forty is the line
+      below which it is doing neither well.
+
+      It is a heuristic for one industry at one stage of its life and travels
+      badly. Applied to a utility it says nothing; applied to a company whose
+      growth came from an acquisition it says the wrong thing.
+    formulas:
+      - latex: 'R40_t = \left( \frac{Revenue_t}{Revenue_{t-4}} - 1 \right) \cdot 100 + \frac{EBITDA_t}{Revenue_t} \cdot 100'
+        note: The growth term steps back four rows of the chosen basis, i.e. a year of quarters.
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: ttm
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+    inputs: [revenue, ebitda]
+    unit: percent
+    direction: higher
+    period: ttm
+    references:
+      - "Feld, B. (2015). The Rule of 40% For a Healthy SaaS Company."
+    implementation: factorbase.factors.fundamentals.profitability:rule_of_forty
+    status: stable
+
+  - id: research_intensity
+    name: Research Intensity
+    kind: fundamental
+    family: profitability
+    summary: R&D spending over revenue or over assets, in percent.
+    description: >-
+      How much of the business is spent on renewing it. High intensity
+      depresses every margin in this file while it is being spent, which is
+      why a screen that ranks on margin alone systematically ranks down
+      companies investing in their own future.
+    formulas:
+      - latex: 'RI_t = \frac{R\&D_t}{Base_t} \cdot 100'
+        note: Base is revenue or total assets, whichever the parameter selects.
+    parameters:
+      - id: base
+        name: Base
+        dtype: str
+        default: revenue
+        choices: [revenue, total_assets]
+        description: What the spending is measured against.
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the factor is computed on.
+    inputs: [research_and_development, revenue, total_assets]
+    unit: percent
+    direction: undefined
+    period: annual
+    references:
+      - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 17."
+    implementation: factorbase.factors.fundamentals.profitability:research_intensity
+    status: stable
