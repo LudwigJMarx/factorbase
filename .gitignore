@@ -9,3 +9,6 @@ _local/
 .env
 .env.*
 !.env.example
+
+# Build artefacts of the catalogue
+*.sqlite3

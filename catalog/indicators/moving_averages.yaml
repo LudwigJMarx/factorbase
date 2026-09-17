@@ -1,0 +1,265 @@
+# Moving averages and the factors built directly on them.
+#
+# The averages themselves are listed as factors, not hidden as helpers, because
+# a screener needs to rank on "the 200-day average" as readily as on a ratio.
+
+factors:
+  - id: sma
+    name: Simple Moving Average
+    kind: indicator
+    family: moving_average
+    summary: Unweighted mean of the last n closes.
+    description: >-
+      Adds the last n closing prices and divides by n. Every price in the window
+      counts the same, and a price leaving the window at the back end moves the
+      average as much as the new price entering at the front. That second effect
+      is the one most readers forget: an SMA can turn down on a day the price
+      rose, purely because a high value dropped out of the window.
+    formulas:
+      - latex: 'SMA_t(n) = \frac{1}{n} \sum_{i=0}^{n-1} C_{t-i}'
+        note: C is the close, n the window length in bars.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 200
+        minimum: 1
+        maximum: 100000
+        description: Number of bars in the window.
+    inputs: [close]
+    unit: price
+    direction: undefined
+    output_range: [0, null]
+    aliases: [simple_moving_average]
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
+    implementation: factorbase.compute.moving_averages:sma
+    status: stable
+
+  - id: ema
+    name: Exponential Moving Average
+    kind: indicator
+    family: moving_average
+    summary: Weighted mean of all past closes, weights decaying geometrically.
+    description: >-
+      Each new close gets weight alpha, everything before it keeps 1 - alpha of
+      what it had. No price ever leaves the average entirely, so the drop-out
+      effect of the simple average does not occur. The warm-up matters: the
+      series is seeded with the simple average of the first n closes, which is
+      the common convention and the reason two implementations of "the same"
+      EMA can differ for the first few hundred bars.
+    formulas:
+      - latex: '\alpha = \frac{2}{n + 1}'
+        note: The smoothing constant implied by a period length n.
+      - latex: 'EMA_t = \alpha C_t + (1 - \alpha) EMA_{t-1}'
+      - latex: 'EMA_{n-1} = \frac{1}{n} \sum_{i=0}^{n-1} C_i'
+        note: Seed value. Bars before this are undefined, not zero.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 200
+        minimum: 1
+        maximum: 100000
+        description: Period length the smoothing constant is derived from.
+    inputs: [close]
+    unit: price
+    direction: undefined
+    output_range: [0, null]
+    aliases: [exponential_moving_average]
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
+    implementation: factorbase.compute.moving_averages:ema
+    status: stable
+
+  - id: wma
+    name: Weighted Moving Average
+    kind: indicator
+    family: moving_average
+    summary: Mean of the last n closes with linearly falling weights.
+    description: >-
+      The newest close is weighted n, the one before it n-1, down to 1 for the
+      oldest. It reacts faster than the simple average and, unlike the
+      exponential one, forgets a price completely once it leaves the window.
+    formulas:
+      - latex: 'WMA_t(n) = \frac{\sum_{i=0}^{n-1} (n - i) \, C_{t-i}}{\sum_{i=1}^{n} i}'
+      - latex: '\sum_{i=1}^{n} i = \frac{n(n+1)}{2}'
+        note: The normalising divisor, written out.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 200
+        minimum: 1
+        maximum: 100000
+        description: Number of bars in the window.
+    inputs: [close]
+    unit: price
+    direction: undefined
+    output_range: [0, null]
+    aliases: [weighted_moving_average]
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
+    implementation: factorbase.compute.moving_averages:wma
+    status: stable
+
+  - id: price_to_ma_distance
+    name: Distance From Moving Average
+    kind: indicator
+    family: moving_average
+    summary: How far the close sits above or below its own moving average, in percent.
+    description: >-
+      Expresses the gap between price and average as a share of the average, so
+      readings compare across instruments of any price level. Positive means the
+      close is above the average. This is the factor that answers "extended" or
+      "stretched" with a number instead of an adjective.
+    formulas:
+      - latex: 'D_t = \frac{C_t - MA_t(n)}{MA_t(n)} \cdot 100'
+        note: MA is whichever average `method` selects.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 200
+        minimum: 1
+        maximum: 100000
+        description: Window of the average the price is measured against.
+      - id: method
+        name: Average type
+        dtype: str
+        default: sma
+        choices: [sma, ema, wma]
+        description: Which of the three averages to use.
+    inputs: [close]
+    unit: percent
+    direction: undefined
+    aliases: [ma_distance]
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
+    implementation: factorbase.compute.moving_averages:price_to_ma_distance
+    status: stable
+
+  - id: ma_to_ma_distance
+    name: Distance Between Two Moving Averages
+    kind: indicator
+    family: moving_average
+    summary: Gap between a fast and a slow moving average, in percent of the slow one.
+    description: >-
+      The continuous version of a crossover. A crossover only tells you the sign
+      changed; this tells you how far apart the two averages are, which is what
+      distinguishes a decisive trend from two lines grazing each other.
+    formulas:
+      - latex: 'D_t = \frac{MA_t(n_{fast}) - MA_t(n_{slow})}{MA_t(n_{slow})} \cdot 100'
+    parameters:
+      - id: fast_periods
+        name: Fast periods
+        dtype: int
+        default: 50
+        minimum: 1
+        maximum: 100000
+        description: Window of the faster average.
+      - id: slow_periods
+        name: Slow periods
+        dtype: int
+        default: 200
+        minimum: 1
+        maximum: 100000
+        description: Window of the slower average.
+      - id: method
+        name: Average type
+        dtype: str
+        default: sma
+        choices: [sma, ema, wma]
+        description: Which average both windows use.
+    inputs: [close]
+    unit: percent
+    direction: undefined
+    aliases: [ma_ma_distance]
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
+    implementation: factorbase.compute.moving_averages:ma_to_ma_distance
+    status: stable
+
+  - id: ma_slope
+    name: Moving Average Slope
+    kind: indicator
+    family: moving_average
+    summary: Percentage change of a moving average over the last m bars.
+    description: >-
+      Measures whether the average is rising and how steeply, without reference
+      to where the price currently is. A long-term average that is still falling
+      is a different situation from one that has turned up, even when the price
+      is above both.
+    formulas:
+      - latex: 'S_t = \frac{MA_t(n) - MA_{t-m}(n)}{MA_{t-m}(n)} \cdot 100'
+        note: m is the lookback over which the slope is measured, not the average's own window.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 200
+        minimum: 1
+        maximum: 100000
+        description: Window of the average whose slope is taken.
+      - id: lookback
+        name: Slope lookback
+        dtype: int
+        default: 20
+        minimum: 1
+        maximum: 100000
+        description: How many bars back the comparison point sits.
+      - id: method
+        name: Average type
+        dtype: str
+        default: sma
+        choices: [sma, ema, wma]
+        description: Which average to take the slope of.
+    inputs: [close]
+    unit: percent
+    direction: higher
+    implementation: factorbase.compute.moving_averages:ma_slope
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
+    status: stable
+
+  - id: ma_slope_normalized
+    name: Normalised Moving Average Slope
+    kind: indicator
+    family: moving_average
+    summary: Slope of a moving average divided by the instrument's volatility.
+    description: >-
+      The plain slope favours volatile instruments: a two percent weekly rise
+      means something different for a utility than for a biotech. Dividing by
+      average true range over the same window puts both on the same scale, which
+      is what makes the factor rankable across a mixed universe.
+    formulas:
+      - latex: 'S^{norm}_t = \frac{MA_t(n) - MA_{t-m}(n)}{ATR_t(n)}'
+        note: Result is in units of average daily range, not percent.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 200
+        minimum: 1
+        maximum: 100000
+        description: Window of the average whose slope is taken.
+      - id: lookback
+        name: Slope lookback
+        dtype: int
+        default: 20
+        minimum: 1
+        maximum: 100000
+        description: How many bars back the comparison point sits.
+      - id: method
+        name: Average type
+        dtype: str
+        default: sma
+        choices: [sma, ema, wma]
+        description: Which average to take the slope of.
+    inputs: [high, low, close]
+    unit: ratio
+    direction: higher
+    implementation: factorbase.compute.moving_averages:ma_slope_normalized
+    references:
+      - "Wilder, J. W. (1978). New Concepts in Technical Trading Systems, ch. 3."
+    status: stable
