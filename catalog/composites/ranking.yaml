@@ -1,0 +1,250 @@
+# Cross-sectional transforms: turning factor values into ranks and scores.
+#
+# Everything else in this catalogue looks at one instrument through time. These
+# look at every instrument at one moment, which is the whole difference between
+# a factor and a ranking, and the reason a rank cannot be computed from a single
+# price series however long its history.
+#
+# Three rules run through the family:
+#
+# Rank within a comparable set. This package cannot check that a universe is
+# comparable, so the entries say so and the caller does the grouping. Ranking a
+# bank against a software company on price-to-book returns a number and not a
+# comparison.
+#
+# A missing value is not a bad value. Instruments whose factor is NaN are left
+# out of the ranking rather than placed last. Placing them last is the most
+# common way a screen ends up systematically buying whatever the data vendor
+# failed to cover.
+#
+# A score built from fewer components than it claims is a different score, and
+# renormalising the remaining weights changes the strategy per instrument.
+
+factors:
+  - id: factor_rank
+    name: Factor Rank
+    kind: composite
+    family: ranking
+    summary: Position within the cross-section, 1 being best.
+    description: >-
+      `direction` decides which end is best and is the same field the
+      underlying factor's own entry carries. Read it from the catalogue rather
+      than typing it: passing it the wrong way round inverts the strategy and
+      produces a result that looks entirely reasonable.
+
+      Ties share the average of the positions they span, so a universe where
+      many instruments report the same value does not get an arbitrary order
+      imposed on it. `undefined` is not an acceptable direction and raises;
+      there is no correct way to rank an oscillator without a strategy around
+      it.
+    formulas:
+      - latex: 'r_i = \left| \{ j : x_j \succ x_i \} \right| + 1'
+        note: The ordering depends on direction. NaN values are excluded from the set.
+    parameters:
+      - id: direction
+        name: Direction
+        dtype: str
+        default: higher
+        choices: [higher, lower]
+        description: Which end of the scale ranks first.
+      - id: method
+        name: Tie handling
+        dtype: str
+        default: average
+        choices: [average, min, max, first, dense]
+        description: How instruments with equal values share their positions.
+    inputs: [factor_value]
+    unit: count
+    direction: lower
+    output_range: [1, null]
+    references:
+      - "Grinold, R. C. and Kahn, R. N. (2000). Active Portfolio Management, 2nd ed., ch. 4."
+    implementation: factorbase.factors.ranking:rank
+    status: stable
+
+  - id: factor_percentile
+    name: Factor Percentile
+    kind: composite
+    family: ranking
+    summary: Position as a percentage of the cross-section, 100 being best.
+    description: >-
+      Comparable across dates and across factors in a way a raw rank is not. A
+      rank of 40 means something very different in a universe of 50 and one of
+      3000; a percentile of 80 does not. This is the form the composite score
+      combines, for that reason.
+    formulas:
+      - latex: 'p_i = \frac{n - r_i}{n - 1} \cdot 100'
+        note: n counts only the instruments with a value. A single-instrument set reads 50.
+    parameters:
+      - id: direction
+        name: Direction
+        dtype: str
+        default: higher
+        choices: [higher, lower]
+        description: Which end of the scale scores 100.
+    inputs: [factor_value]
+    unit: percent
+    direction: higher
+    output_range: [0, 100]
+    references:
+      - "Grinold, R. C. and Kahn, R. N. (2000). Active Portfolio Management, 2nd ed., ch. 4."
+    implementation: factorbase.factors.ranking:percentile
+    status: stable
+
+  - id: factor_z_score
+    name: Factor Z-Score
+    kind: composite
+    family: ranking
+    summary: Standardised distance from the cross-sectional mean.
+    description: >-
+      Keeps the spacing a rank throws away: the gap between the best and the
+      second-best instrument is visible here and invisible in a rank. That is
+      an advantage when the distribution behaves and a liability when it does
+      not, because one extreme value moves the mean and the deviation at once,
+      and therefore moves everybody else's score.
+
+      `winsorise` clips each tail before standardising, which is the usual
+      defence. One percent is the common choice. At 0 the raw values are used
+      and the entry makes no promises about what one bad print will do.
+    formulas:
+      - latex: 'z_i = \frac{x_i - \bar{x}}{s}'
+        note: s is the sample deviation across the set. The sign is flipped when lower is better.
+    parameters:
+      - id: direction
+        name: Direction
+        dtype: str
+        default: higher
+        choices: [higher, lower]
+        description: Which end of the scale scores positive.
+      - id: winsorise
+        name: Winsorise
+        dtype: float
+        default: 0.0
+        minimum: 0.0
+        maximum: 49.0
+        description: Percentile clipped from each tail before standardising. 0 disables it.
+    inputs: [factor_value]
+    unit: ratio
+    direction: higher
+    references:
+      - "Grinold, R. C. and Kahn, R. N. (2000). Active Portfolio Management, 2nd ed., ch. 4."
+    implementation: factorbase.factors.ranking:z_score
+    status: stable
+
+  - id: composite_score
+    name: Composite Score
+    kind: composite
+    family: ranking
+    summary: Weighted mean of several factors' percentiles, 0 to 100.
+    description: >-
+      Percentiles rather than raw values, because the components are in
+      different units and adding a price-to-earnings ratio to a margin is
+      meaningless. Percentiles rather than z-scores, because one extreme
+      instrument should not move everybody else's score.
+
+      Weights are used as given and are never renormalised per instrument. An
+      instrument missing a component carrying 30 percent of the weight has 70
+      percent of the strategy applied to it, and reporting that as the same
+      score as everyone else's is how a screen ends up ranking on a different
+      rule for every row. `min_coverage` is the share of weight that has to be
+      present; below it the score is NaN. The `coverage` function reports the
+      share directly, so a caller can tell thin data from a missing
+      instrument.
+    formulas:
+      - latex: 'S_i = \frac{\sum_k w_k \, p_{k,i} \, \mathbb{1}[p_{k,i} \text{ exists}]}{\sum_k w_k \, \mathbb{1}[p_{k,i} \text{ exists}]}'
+      - latex: 'c_i = \frac{\sum_k w_k \, \mathbb{1}[p_{k,i} \text{ exists}]}{\sum_k w_k}, \qquad S_i \text{ undefined where } c_i < c_{min}'
+    parameters:
+      - id: min_coverage
+        name: Minimum coverage
+        dtype: float
+        default: 1.0
+        minimum: 0.0
+        maximum: 1.0
+        description: >-
+          Share of the total weight that must have a value. The default of 1
+          requires every component, which is the only setting under which every
+          instrument was scored by the same rule.
+    inputs: [factor_values]
+    unit: percent
+    direction: higher
+    output_range: [0, 100]
+    references:
+      - "Grinold, R. C. and Kahn, R. N. (2000). Active Portfolio Management, 2nd ed., ch. 4."
+    implementation: factorbase.factors.ranking:composite_score
+    status: stable
+
+  - id: top_n
+    name: Top N
+    kind: composite
+    family: ranking
+    summary: Boolean mask of the best n instruments in each cross-section.
+    description: >-
+      Ties at the boundary are all included, so the mask can select more than n
+      instruments. Cutting the tie arbitrarily would make the selection depend
+      on the order of the columns, which is a property of the frame and not of
+      the data.
+    formulas:
+      - latex: 'Top_i = r_i \le n'
+        note: Rank taken with min tie handling, so tied instruments share the lower position.
+    parameters:
+      - id: count
+        name: Count
+        dtype: int
+        default: 20
+        minimum: 1
+        maximum: 100000
+        description: How many instruments to select.
+      - id: direction
+        name: Direction
+        dtype: str
+        default: higher
+        choices: [higher, lower]
+        description: Which end of the scale is selected from.
+    inputs: [factor_value]
+    unit: boolean
+    direction: higher
+    references:
+      - "Grinold, R. C. and Kahn, R. N. (2000). Active Portfolio Management, 2nd ed., ch. 14."
+    implementation: factorbase.factors.ranking:top_n
+    notes: >-
+      Boolean, but a composite rather than a signal: it needs a cross-section,
+      not a price history. A signal answers "did this happen to this
+      instrument"; this answers "was this instrument among the best", which no
+      amount of its own history can decide.
+    status: stable
+
+  - id: quantile_bucket
+    name: Quantile Bucket
+    kind: composite
+    family: ranking
+    summary: Which fifth, tenth or other slice of the cross-section each instrument sits in.
+    description: >-
+      Bucket 1 is the best. Built from percentiles rather than from the values,
+      so the buckets hold equal numbers of instruments rather than equal ranges
+      of value. That is what a factor study means by a quintile, and building
+      it the other way puts nine tenths of a skewed universe into one bucket.
+    formulas:
+      - latex: 'b_i = \left\lceil \frac{100 - p_i}{100 / q} \right\rceil'
+        note: Clipped to the range 1 to q, so the single best instrument lands in bucket 1.
+    parameters:
+      - id: buckets
+        name: Buckets
+        dtype: int
+        default: 5
+        minimum: 2
+        maximum: 1000
+        description: How many slices the cross-section is cut into.
+      - id: direction
+        name: Direction
+        dtype: str
+        default: higher
+        choices: [higher, lower]
+        description: Which end of the scale lands in bucket 1.
+    inputs: [factor_value]
+    unit: count
+    direction: lower
+    output_range: [1, null]
+    references:
+      - "Fama, E. F. and French, K. R. (1992). The Cross-Section of Expected Stock Returns. Journal of Finance 47(2)."
+    implementation: factorbase.factors.ranking:quantile_bucket
+    status: stable

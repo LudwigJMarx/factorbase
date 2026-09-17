@@ -43,7 +43,7 @@ class Unit(str, Enum):
     PRICE = "price"          # same scale as the price series
     COUNT = "count"          # a number of bars, days, occurrences
     DAYS = "days"
-    BOOLEAN = "boolean"      # signals only
+    BOOLEAN = "boolean"      # signals, and the selection masks among the composites
 
 
 class Direction(str, Enum):
@@ -162,8 +162,10 @@ class Factor:
             raise CatalogError(source, f"{self.id}: inputs is empty")
         if self.kind is Kind.SIGNAL and self.unit is not Unit.BOOLEAN:
             raise CatalogError(source, f"{self.id}: a signal must have unit 'boolean'")
-        if self.kind is not Kind.SIGNAL and self.unit is Unit.BOOLEAN:
-            raise CatalogError(source, f"{self.id}: unit 'boolean' is reserved for signals")
+        if self.kind in {Kind.INDICATOR, Kind.FUNDAMENTAL} and self.unit is Unit.BOOLEAN:
+            raise CatalogError(
+                source, f"{self.id}: an {self.kind.value} must return a number, not a boolean"
+            )
         if self.kind is Kind.FUNDAMENTAL and self.period is Period.NOT_APPLICABLE:
             raise CatalogError(source, f"{self.id}: a fundamental must state its period")
         if self.status is Status.STABLE and not self.implementation:

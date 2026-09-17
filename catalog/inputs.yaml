@@ -115,3 +115,25 @@ benchmark:
   index: [date]
   fields:
     close: {dtype: float, required: true, description: Benchmark close.}
+
+derived:
+  description: >-
+    Not data, but the output of other factors. The cross-sectional entries
+    consume these: they take a value per instrument at one point in time and
+    return a position within that set. A factor whose inputs are listed here
+    cannot be computed from a single instrument's history, however long.
+  index: [date, symbol]
+  fields:
+    factor_value:
+      dtype: float
+      required: true
+      description: >-
+        One factor's value for every instrument in the comparison set, at one
+        date. A Series indexed by instrument, or a frame of dates by
+        instruments.
+    factor_values:
+      dtype: float
+      required: false
+      description: >-
+        Several factors' values, as a mapping from factor id to the above.
+        Used by the composite entries.
