@@ -1,5 +1,9 @@
 # factorbase
 
+[![Checks](https://github.com/LudwigJMarx/factorbase/actions/workflows/checks.yml/badge.svg)](https://github.com/LudwigJMarx/factorbase/actions/workflows/checks.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-green)](LICENSE)
+
 A catalogue of stock-screening factors. Every entry carries a written
 definition, the formula it is defined by, the data it consumes, and a reference
 implementation that is tested against the formula.
@@ -167,8 +171,9 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/python scripts/check_catalog_wired.py
 ```
 
-[AGENTS.md](AGENTS.md) has the rules this project works under, each one
-attached to the run that forced it.
+[CONTRIBUTING.md](CONTRIBUTING.md) says what an entry has to state and what
+evidence a change needs. [AGENTS.md](AGENTS.md) has the rules this project
+works under, each one attached to the run that forced it.
 
 ## Licence
 
