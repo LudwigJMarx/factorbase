@@ -14,8 +14,16 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 ```
 
 All three are gates in CI, along with ruff, mypy and a build of the SQLite
-file. A separate job installs the declared dependency floor rather than the
-newest release, because a minimum nothing exercises is a guess.
+file. Two further jobs run there and not here: one installs the declared
+dependency floor rather than the newest release, because a minimum nothing
+exercises is a guess, and one installs R and holds the catalogue against TTR.
+
+`scripts/check_against_ttr.py` needs R with TTR. Without it the script fails
+rather than skipping, which is why it has its own job: a contributor without R
+is not blocked from running everything else, and nothing passes by not having
+run. If your change touches a factor that
+[`catalog/mappings/ttr.yaml`](catalog/mappings/ttr.yaml) maps, expect that job
+to have an opinion about it.
 
 ## Adding a factor
 

@@ -168,9 +168,18 @@ def _factor_from(raw: dict[str, Any], source: str) -> Factor:
     return factor
 
 
+# Directories under `catalog/` that hold something other than factor entries.
+# `mappings/` records how this catalogue relates to other packages; it is data
+# about the catalogue rather than part of it, and feeding it to the factor
+# loader would only produce a confusing complaint about a missing key.
+_NOT_FACTORS = frozenset({"mappings"})
+
+
 def _yaml_files(root: Path) -> Iterator[Path]:
     for path in sorted(root.rglob("*.yaml")):
         if path.name.startswith("_") or path.name == "inputs.yaml":
+            continue
+        if _NOT_FACTORS & set(path.relative_to(root).parts):
             continue
         yield path
 

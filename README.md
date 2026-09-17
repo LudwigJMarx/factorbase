@@ -52,6 +52,45 @@ A few of the things the entries say out loud:
   window fits a steeper line than an even climb to the same level, by more than
   the R-squared penalty takes away. The entry shows the arithmetic.
 
+## Measured against R's TTR
+
+The claim above, that two packages disagree without saying why, is not left as
+an argument. [`catalog/mappings/ttr.yaml`](catalog/mappings/ttr.yaml) holds 23
+mappings against [TTR](https://cran.r-project.org/package=TTR), and a CI job
+installs R, runs both sides on a committed price series and fails if any of
+them stops being true.
+
+Eighteen agree to floating-point noise. Four more agree once Wilder's seed has
+decayed: TTR leaves the first bar's true range undefined and this catalogue
+uses the plain high-low range there, so ATR opens 0.137 apart and is within
+1e-9 from bar 267.
+
+The useful half is the traps: the call a reader reaches for first, when it is
+not the one that agrees.
+
+| Factor | What agrees | What a reader reaches for | Apart by |
+|---|---|---|---:|
+| `rsi` | `RSI(close, 14)` | `RSI(close, 14, maType = "EMA")` | 17.5 points |
+| `bollinger_percent_b` | `BBands(close, 20, sd = 2)` | `BBands(cbind(high, low, close), ...)` | 0.31 |
+| `macd` | `MACD(..., percent = FALSE)` | `MACD(...)` | not comparable |
+| `aroon_up` | `aroon(hl, 24)` against `periods=25` | `aroon(hl, 25)` | up to 100 points |
+
+TTR's RSI default turns out to **be** Wilder's smoothing, which is the opposite
+of what this file's author assumed before running it. `BBands` handed a
+high-low-close matrix computes on the typical price and nothing in the call
+says so. `MACD` returns a percentage unless told otherwise. `aroon` counts the
+lookback interval where this catalogue counts the window, and passing the same
+number to both is off by a bar: usually one point, and on 1.3 percent of bars
+the difference between 100 and 0.
+
+The traps are checked in both directions. If a difference this file describes
+ever disappears, the job fails, because a note that reads as current and
+describes something that no longer happens is worse than no note.
+
+```bash
+python3 scripts/check_against_ttr.py    # needs R with TTR
+```
+
 ## Bring your own data
 
 There is no data source in this package and there will not be one. Prices and
