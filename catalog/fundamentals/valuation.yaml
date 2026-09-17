@@ -419,6 +419,12 @@ factors:
       systematic rather than noise: a company that has already announced a cut
       still shows the old yield on the paid basis, which is exactly the
       situation a yield screen is most likely to walk into.
+
+      `base` divides by enterprise value instead of market capitalisation, so a
+      leveraged company's yield falls towards what the dividend costs on the
+      whole business rather than on its equity sliver. The two readings diverge
+      exactly where the leverage is, which is where a yield screen is most
+      likely to be picking up risk and calling it income.
     formulas:
       - latex: 'DY_t = \frac{Dividends_t}{MC_t} \cdot 100'
     parameters:
@@ -441,7 +447,16 @@ factors:
         default: paid
         choices: [paid, declared]
         description: Dividends actually paid in the period, or announced for it.
-    inputs: [market_cap, dividends_paid, dividend_per_share_paid, dividend_per_share_declared, shares_outstanding]
+      - id: base
+        name: Base
+        dtype: str
+        default: market_cap
+        choices: [market_cap, enterprise_value]
+        description: >-
+          What the dividend is measured against. Enterprise value asks what it
+          yields on the whole capital structure rather than on the equity
+          alone.
+    inputs: [market_cap, total_debt, cash_and_equivalents, dividends_paid, dividend_per_share_paid, dividend_per_share_declared, shares_outstanding]
     companions: [market]
     unit: percent
     direction: higher
@@ -486,4 +501,70 @@ factors:
     references:
       - "Penman, S. H. (2012). Financial Statement Analysis and Security Valuation, 5th ed., ch. 4."
     implementation: factorbase.factors.fundamentals.valuation:payout_ratio
+    status: stable
+
+  - id: market_cap_to_research
+    name: Market Cap to R&D
+    kind: fundamental
+    family: valuation
+    summary: Market capitalisation over annual research spending.
+    description: >-
+      How many years of the current research budget the market is paying for.
+      Low readings are cheap only if the research is worth something, which
+      this says nothing about: a company that has cut R&D to nothing reads as
+      spectacularly cheap right up to the point its pipeline empties. Read it
+      next to research intensity, which says how much is being spent, or not at
+      all.
+    formulas:
+      - latex: 'MCRD_t = \frac{MC_t}{R\&D_t}, \qquad R\&D_t > 0'
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the spending is taken from.
+    inputs: [market_cap, research_and_development]
+    companions: [market]
+    unit: ratio
+    direction: lower
+    period: annual
+    references:
+      - "Chan, L. K. C., Lakonishok, J. and Sougiannis, T. (2001). The Stock Market Valuation of Research and Development Expenditures. Journal of Finance 56(6)."
+    implementation: factorbase.factors.fundamentals.valuation:market_cap_to_research
+    status: stable
+
+  - id: market_cap_to_debt
+    name: Market Cap to Debt
+    kind: fundamental
+    family: leverage
+    summary: Market capitalisation over interest-bearing debt.
+    description: >-
+      How much equity cushion stands in front of the lenders, at market prices
+      rather than at book. It moves with the share price, where every
+      balance-sheet leverage ratio moves only when the accounts are published.
+      That is what makes it worth having beside them and useless as a
+      substitute for them: it falls fastest exactly when the market is already
+      worried, which is information about the market and not about the
+      accounts.
+
+      A debt-free company has no ratio. NaN rather than infinity, and it reads
+      as nothing to cover.
+    formulas:
+      - latex: 'MCD_t = \frac{MC_t}{Debt_t}, \qquad Debt_t > 0'
+    parameters:
+      - id: period
+        name: Reporting basis
+        dtype: str
+        default: annual
+        choices: [annual, quarterly, ttm]
+        description: Which reported rows the debt is taken from.
+    inputs: [market_cap, total_debt]
+    companions: [market]
+    unit: ratio
+    direction: higher
+    period: annual
+    references:
+      - "Merton, R. C. (1974). On the Pricing of Corporate Debt. Journal of Finance 29(2)."
+    implementation: factorbase.factors.fundamentals.valuation:market_cap_to_debt
     status: stable

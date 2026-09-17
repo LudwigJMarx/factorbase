@@ -749,3 +749,80 @@ def test_a_repeated_period_end_across_bases_is_fine(accounts: pd.DataFrame) -> N
     trailing = accounts[accounts["period"] == "ttm"]
     assert quarterly.index.equals(trailing.index)
     assert compute("net_margin", accounts, period="ttm").notna().any()
+
+
+# ── The four ratios the first pass missed ───────────────────────────────────
+
+
+def test_market_cap_to_research_counts_years_of_the_budget(
+    accounts: pd.DataFrame, market_value: pd.Series
+) -> None:
+    from factorbase import compute
+    from factorbase.factors.fundamentals.valuation import market_cap_to_research
+
+    rows = accounts[accounts["period"] == "annual"]
+    expected = 2700.0 / rows["research_and_development"].iloc[-1]
+    assert market_cap_to_research(accounts, market_value).iloc[-1] == pytest.approx(expected)
+    assert compute("market_cap_to_research", accounts, market_value).iloc[-1] == pytest.approx(
+        expected
+    )
+
+
+def test_market_cap_to_research_is_undefined_without_research(
+    accounts: pd.DataFrame, market_value: pd.Series
+) -> None:
+    """A company that spends nothing on it has no ratio, not an infinite one."""
+    from factorbase.factors.fundamentals.valuation import market_cap_to_research
+
+    none = accounts.copy()
+    none["research_and_development"] = 0.0
+    assert market_cap_to_research(none, market_value).isna().all()
+
+
+def test_market_cap_to_debt_is_the_cushion_in_front_of_the_lenders(
+    accounts: pd.DataFrame, market_value: pd.Series
+) -> None:
+    from factorbase.factors.fundamentals.valuation import market_cap_to_debt
+
+    rows = accounts[accounts["period"] == "annual"]
+    expected = 2700.0 / rows["total_debt"].iloc[-1]
+    assert market_cap_to_debt(accounts, market_value).iloc[-1] == pytest.approx(expected)
+
+
+def test_market_cap_to_debt_is_undefined_without_debt(
+    accounts: pd.DataFrame, market_value: pd.Series
+) -> None:
+    from factorbase.factors.fundamentals.valuation import market_cap_to_debt
+
+    unlevered = accounts.copy()
+    unlevered["total_debt"] = 0.0
+    assert market_cap_to_debt(unlevered, market_value).isna().all()
+
+
+def test_dividend_yield_on_enterprise_value_is_lower_for_a_levered_company(
+    accounts: pd.DataFrame, market_value: pd.Series
+) -> None:
+    """The fixture carries more debt than cash, so enterprise value exceeds
+    market capitalisation and the same dividend yields less on it."""
+    on_equity = dividend_yield(accounts, market_value, base="market_cap").iloc[-1]
+    on_enterprise = dividend_yield(accounts, market_value, base="enterprise_value").iloc[-1]
+    assert on_enterprise < on_equity
+
+    rows = accounts[accounts["period"] == "annual"]
+    value = 2700.0 + rows["total_debt"].iloc[-1] - rows["cash_and_equivalents"].iloc[-1]
+    expected = rows["dividends_paid"].iloc[-1] / value * 100.0
+    assert on_enterprise == pytest.approx(expected)
+
+
+def test_an_unknown_dividend_base_is_rejected(
+    accounts: pd.DataFrame, market_value: pd.Series
+) -> None:
+    with pytest.raises(ValueError, match="unknown base"):
+        dividend_yield(accounts, market_value, base="book_value")
+
+
+def test_growth_can_be_measured_on_research_spending(accounts: pd.DataFrame) -> None:
+    """The line was in the vocabulary and not in the growth factor's item list,
+    so the one reported figure nobody could ask for was the R&D trend."""
+    result = growth(accounts, item="research", period="annual", periods=1)
+    assert result.iloc[-1] == pytest.approx(10.0)

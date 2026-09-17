@@ -1043,3 +1043,86 @@ factors:
       - "Wyckoff, R. D., in Pruden, H. (2007). The Three Skills of Top Trading, ch. 3."
     implementation: factorbase.factors.signals:selling_climax
     status: stable
+
+  - id: gilligans_island_buy
+    name: Gilligan's Island Buy Setup
+    kind: signal
+    family: breakout
+    summary: Gap down to a new low, then a close back at or above the open.
+    description: >-
+      Two halves, and the pattern is the pair. The open has to be below the
+      prior window's low, so the gap reaches a price nobody traded at in two
+      months. The close has to be at or above that open while still sitting in
+      the lower part of the bar: the day fell away from everyone who sold into
+      the gap and recovered only part of it.
+
+      A bar that gaps down and keeps falling is not this. A bar that gaps down
+      and closes at its high is a different and far more obvious event, and the
+      closing-position condition is what keeps it out.
+
+      Two months is 40 bars here. Sources describing this pattern give the
+      window in weeks and do not agree on the number, so it is a parameter with
+      a stated default rather than an implied standard.
+    formulas:
+      - latex: 'Gap_t = O_t < \min_{1 \le i \le n} L_{t-i}'
+      - latex: 'pos_t = \frac{C_t - L_t}{H_t - L_t}'
+      - latex: 'Buy_t = Gap_t \wedge \left( C_t \ge O_t \right) \wedge \left( pos_t \le p \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 40
+        minimum: 2
+        maximum: 100000
+        description: Length of the window the gap has to clear, in bars.
+      - id: close_position
+        name: Close position
+        dtype: float
+        default: 0.5
+        minimum: 0.0
+        maximum: 1.0
+        description: How low in its range the bar must still close.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Cooper, J. (1996). Hit and Run Trading: The Short-Term Stock Traders' Bible."
+    implementation: factorbase.factors.signals:gilligans_island_buy
+    notes: >-
+      Often attributed to Larry Williams. The description this entry is built
+      from is Cooper's.
+    status: stable
+
+  - id: gilligans_island_sell
+    name: Gilligan's Island Sell Setup
+    kind: signal
+    family: breakout
+    summary: Gap up to a new high, then a close back at or below the open.
+    description: >-
+      The mirror of the buy setup, with the closing position measured from the
+      top of the bar.
+    formulas:
+      - latex: 'Gap_t = O_t > \max_{1 \le i \le n} H_{t-i}'
+      - latex: 'Sell_t = Gap_t \wedge \left( C_t \le O_t \right) \wedge \left( pos_t \ge 1 - p \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 40
+        minimum: 2
+        maximum: 100000
+        description: Length of the window the gap has to clear, in bars.
+      - id: close_position
+        name: Close position
+        dtype: float
+        default: 0.5
+        minimum: 0.0
+        maximum: 1.0
+        description: How high in its range the bar must still close.
+    inputs: [open, high, low, close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Cooper, J. (1996). Hit and Run Trading: The Short-Term Stock Traders' Bible."
+    implementation: factorbase.factors.signals:gilligans_island_sell
+    status: stable

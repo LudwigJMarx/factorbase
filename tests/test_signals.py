@@ -25,6 +25,8 @@ from factorbase.factors.signals import (
     expansion_breakout,
     gap_down,
     gap_up,
+    gilligans_island_buy,
+    gilligans_island_sell,
     golden_cross,
     ma_resistance,
     ma_support,
@@ -338,7 +340,7 @@ def test_every_signal_entry_returns_booleans(wobble: pd.DataFrame) -> None:
     from factorbase.schema import Kind
 
     signals = default_catalog().of_kind(Kind.SIGNAL)
-    assert len(signals) == 51
+    assert len(signals) == len([f for f in default_catalog() if f.kind is Kind.SIGNAL])
     for factor in signals:
         result = compute(factor.id, wobble)
         assert result.dtype == bool, factor.id
@@ -435,3 +437,85 @@ def test_new_high_and_new_low_agree_with_a_running_extreme(
 
     assert sum(expected) > 0
     assert new_high(wobble, periods).tolist() == expected
+
+
+# ── Gilligan's Island ───────────────────────────────────────────────────────
+
+
+def gilligan_frame(last: tuple[float, float, float, float]) -> pd.DataFrame:
+    """Forty quiet bars in a 99 to 101 range, then the bar under test."""
+    rows = [(100.0, 101.0, 99.0, 100.0)] * 40 + [last]
+    index = pd.bdate_range("2024-01-01", periods=len(rows))
+    return pd.DataFrame(
+        {
+            "open": [r[0] for r in rows],
+            "high": [r[1] for r in rows],
+            "low": [r[2] for r in rows],
+            "close": [r[3] for r in rows],
+            "volume": [1_000_000.0] * len(rows),
+        },
+        index=index,
+    )
+
+
+def test_gilligans_island_buy_needs_the_gap_and_the_recovery() -> None:
+    """Opens at 95, below the 99 the window never traded through, slips to 94
+    and closes at 95.5: above the open and still in the lower half of the bar.
+
+    Both conditions together force the bar to open near its low, which is what
+    a gap down does. A bar that opens in the middle of its range cannot satisfy
+    them at once, and that is the pattern rather than an accident of it.
+    """
+    assert bool(gilligans_island_buy(gilligan_frame((95.0, 98.0, 94.0, 95.5))).iloc[-1])
+
+
+def test_a_gap_down_that_keeps_falling_is_not_the_setup() -> None:
+    """Same gap, close below the open. The recovery is the pattern."""
+    assert not bool(gilligans_island_buy(gilligan_frame((95.0, 96.0, 90.0, 91.0))).iloc[-1])
+
+
+def test_a_gap_down_that_closes_at_the_high_is_a_different_event() -> None:
+    """The closing-position condition is what keeps this out."""
+    assert not bool(gilligans_island_buy(gilligan_frame((95.0, 99.0, 94.0, 98.8))).iloc[-1])
+
+
+def test_a_fall_without_a_gap_is_not_the_setup() -> None:
+    """Opens at 99.5, inside the window's range. No untraded space was crossed."""
+    assert not bool(gilligans_island_buy(gilligan_frame((99.5, 100.0, 90.0, 99.6))).iloc[-1])
+
+
+def test_gilligans_island_sell_is_the_mirror() -> None:
+    """Opens at 105, above the 101 the window never traded through, runs to 106
+    and closes at 104.5: below the open and still in the upper half."""
+    assert bool(gilligans_island_sell(gilligan_frame((105.0, 106.0, 102.0, 104.5))).iloc[-1])
+    assert not bool(gilligans_island_sell(gilligan_frame((105.0, 106.0, 102.0, 102.5))).iloc[-1])
+
+
+def test_the_two_setups_never_fire_on_the_same_bar(wobble: pd.DataFrame) -> None:
+    """One needs an open below every low of the window, the other above every
+    high. They cannot both hold."""
+    both = gilligans_island_buy(wobble) & gilligans_island_sell(wobble)
+    assert not both.any()
+
+
+def test_the_window_is_a_parameter_not_a_standard() -> None:
+    """Sources give it in weeks and disagree, so the entry says the default is
+    this package's. A shorter window has to admit more bars, not fewer."""
+    # Twenty wide bars reaching down to 95, then twenty narrow ones above 99,
+    # then a bar opening at 97: a gap against the recent window and not against
+    # the longer one.
+    rows = [(100.0, 105.0, 95.0, 100.0)] * 20
+    rows += [(100.0, 101.0, 99.0, 100.0)] * 20
+    rows += [(97.0, 99.0, 96.0, 97.2)]
+    index = pd.bdate_range("2024-01-01", periods=len(rows))
+    frame = pd.DataFrame(
+        {
+            "open": [r[0] for r in rows],
+            "high": [r[1] for r in rows],
+            "low": [r[2] for r in rows],
+            "close": [r[3] for r in rows],
+        },
+        index=index,
+    )
+    assert bool(gilligans_island_buy(frame, periods=20).iloc[-1])
+    assert not bool(gilligans_island_buy(frame, periods=40).iloc[-1])

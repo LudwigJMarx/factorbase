@@ -37,12 +37,15 @@ def test_every_declared_console_script_resolves() -> None:
 
 
 def test_the_command_line_runs_and_reports_its_scope(capsys: pytest.CaptureFixture[str]) -> None:
+    from factorbase import default_catalog
     from factorbase.cli import main
 
     assert main(["list"]) == 0
     listed = capsys.readouterr().out
     assert "rsi" in listed
-    assert "180" in listed
+    # Against the catalogue, not against a number written here. A test that
+    # fails whenever an entry is added reports growth as a defect.
+    assert str(len(default_catalog())) in listed
 
 
 def test_the_command_line_can_narrow_by_kind(capsys: pytest.CaptureFixture[str]) -> None:
@@ -78,12 +81,13 @@ def test_the_command_line_builds_the_database(
 ) -> None:
     """The README tells a reader to build the SQLite file. From an installed
     copy there is no scripts/ directory to run, so the command has to do it."""
+    from factorbase import default_catalog
     from factorbase.cli import main
 
     destination = tmp_path / "out.sqlite3"
     assert main(["build-db", "--out", str(destination)]) == 0
     assert destination.exists()
-    assert "180" in capsys.readouterr().out
+    assert str(len(default_catalog())) in capsys.readouterr().out
 
 
 def test_the_catalogue_states_every_second_series_a_factor_needs() -> None:
@@ -102,10 +106,16 @@ def test_the_catalogue_states_every_second_series_a_factor_needs() -> None:
     with_market = {f.id for f in catalog if Companion.MARKET in f.companions}
     with_benchmark = {f.id for f in catalog if Companion.BENCHMARK in f.companions}
 
-    assert "price_to_earnings" in with_market
-    assert "market_capitalisation" in with_market
-    assert len(with_market) == 15
+    # Named rather than counted. A count turns every new entry into a failure
+    # and says nothing about which ones need what.
+    assert {"price_to_earnings", "market_capitalisation", "market_cap_to_debt"} <= with_market
     assert "beta" in with_benchmark
     assert "relative_strength_levy" not in with_benchmark
-    assert len(with_benchmark) == 8
+    assert "rsi" not in with_market and "rsi" not in with_benchmark
     assert not (with_market & with_benchmark)
+
+    # Every entry that declares one is a fundamental or a relative indicator.
+    # Nothing else should acquire a companion without a deliberate decision.
+    for factor in catalog:
+        if factor.companions:
+            assert factor.kind.value in {"fundamental", "indicator"}, factor.id

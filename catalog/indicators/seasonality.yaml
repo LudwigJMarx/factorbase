@@ -1,0 +1,138 @@
+# How the instrument behaved at this point of the calendar, in previous years.
+#
+# Screeners usually offer this as half a dozen criteria: by calendar window, by
+# weekday, by quarter, each with and without a trend adjustment. They are one
+# measurement with two switches, and splitting them would give six places to fix
+# one formula.
+
+factors:
+  - id: seasonal_strength
+    name: Seasonal Strength
+    kind: indicator
+    family: seasonality
+    summary: Mean past return at this point of the calendar, in percent.
+    description: >-
+      For each bar, the daily returns of every earlier bar within the lookback
+      that falls in the same bucket are averaged. Only earlier bars: including
+      the current one lets today's return feed its own seasonal reading, which
+      is a small effect on a five-year window and an enormous one on a short
+      series.
+
+      `detrend` subtracts the mean daily return over the same lookback, so the
+      figure is the excess over the instrument's own drift. Leave it off and
+      anything that rose over the period reads positive in every bucket: the
+      factor then ranks the universe on drift while appearing to rank it on
+      seasonality, and every reading is the same number plus noise.
+
+      The honest caveat, which the readings do not carry and the reader has to:
+      with five years of history a weekday bucket holds around 260
+      observations and a quarter around 315, but a five-day calendar window
+      holds roughly 55. The standard error on a mean of 55 daily returns is
+      about a fifth of a percent, so most of what this factor reports is
+      indistinguishable from zero. It gives the mean and not a significance,
+      because what counts as significant is the caller's decision, and nothing
+      here accounts for a screen testing thousands of buckets at once.
+    formulas:
+      - latex: 'r_i = \left( \frac{C_i}{C_{i-1}} - 1 \right) \cdot 100'
+      - latex: 'W_t = \{ i : t - y \text{ years} \le d_i < d_t \}'
+        note: Strictly earlier bars inside the lookback. The current bar is excluded.
+      - latex: 'B_t = \{ i \in W_t : b(d_i) = b(d_t) \}'
+        note: >-
+          b is the bucket. For a calendar window it is the day of the year, matched
+          within w days and measured circularly so that late December sits beside
+          early January.
+      - latex: 'S_t = \frac{1}{|B_t|} \sum_{i \in B_t} r_i \;-\; \delta \cdot \frac{1}{|W_t|} \sum_{i \in W_t} r_i'
+        note: The second term is subtracted only when detrend is set.
+    parameters:
+      - id: bucket
+        name: Bucket
+        dtype: str
+        default: calendar_window
+        choices: [calendar_window, day_of_week, quarter]
+        description: >-
+          What counts as the same point of the calendar: a window of days around
+          the same day of the year, the same weekday, or the same quarter.
+      - id: years
+        name: Years
+        dtype: int
+        default: 5
+        minimum: 1
+        maximum: 100
+        description: How far back the lookback reaches.
+      - id: window_days
+        name: Window days
+        dtype: int
+        default: 5
+        minimum: 0
+        maximum: 182
+        description: >-
+          Half-width of the calendar window, in days of the year. Ignored by the
+          other two buckets.
+      - id: detrend
+        name: Subtract the drift
+        dtype: bool
+        default: true
+        description: >-
+          Report the excess over the mean daily return of the same lookback
+          rather than the raw mean.
+    inputs: [close]
+    unit: percent
+    direction: higher
+    references:
+      - "Bouman, S. and Jacobsen, B. (2002). The Halloween Indicator. American Economic Review 92(5)."
+      - "Lakonishok, J. and Smidt, S. (1988). Are Seasonal Anomalies Real? Review of Financial Studies 1(4)."
+    implementation: factorbase.factors.seasonality:seasonal_strength
+    notes: >-
+      Needs a date index. One of three entries in this catalogue that does,
+      with the hit rate below and the weekly volatility. Given any other index
+      it raises UnsupportedIndexError naming itself.
+    status: stable
+
+  - id: seasonal_hit_rate
+    name: Seasonal Hit Rate
+    kind: indicator
+    family: seasonality
+    summary: Share of past bars in this bucket that closed up, in percent.
+    description: >-
+      The companion to the mean, and it answers a different question. A bucket
+      whose mean is carried by one enormous day reads high there and near 50
+      here, which is what a seasonal claim usually turns out to be once the
+      single day is found. Reading the two together is the point; reading
+      either alone is how a seasonal screen convinces itself.
+
+      No drift adjustment, deliberately. A share of up days is already free of
+      the size of the drift, and subtracting a mean from a proportion would not
+      mean anything.
+    formulas:
+      - latex: 'H_t = \frac{\left| \{ i \in B_t : r_i > 0 \} \right|}{|B_t|} \cdot 100'
+        note: Same bucket and lookback as the entry above. An unchanged bar counts as not up.
+    parameters:
+      - id: bucket
+        name: Bucket
+        dtype: str
+        default: calendar_window
+        choices: [calendar_window, day_of_week, quarter]
+        description: What counts as the same point of the calendar.
+      - id: years
+        name: Years
+        dtype: int
+        default: 5
+        minimum: 1
+        maximum: 100
+        description: How far back the lookback reaches.
+      - id: window_days
+        name: Window days
+        dtype: int
+        default: 5
+        minimum: 0
+        maximum: 182
+        description: Half-width of the calendar window, in days of the year.
+    inputs: [close]
+    unit: percent
+    direction: higher
+    output_range: [0, 100]
+    references:
+      - "Lakonishok, J. and Smidt, S. (1988). Are Seasonal Anomalies Real? Review of Financial Studies 1(4)."
+    implementation: factorbase.factors.seasonality:seasonal_hit_rate
+    notes: Needs a date index, like the entry above.
+    status: stable

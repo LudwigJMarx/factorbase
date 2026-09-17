@@ -254,6 +254,7 @@ def dividend_yield(
     period: str = "annual",
     average_years: int = 1,
     basis: str = "paid",
+    base: str = "market_cap",
 ) -> pd.Series:
     """Dividends over market capitalisation, in percent. Catalogue id `dividend_yield`.
 
@@ -261,11 +262,23 @@ def dividend_yield(
     declared for it. The two differ by up to a year in timing and the
     difference is systematic, not noise: a company that has announced a cut
     still shows the old yield on the paid basis.
+
+    `base` divides by enterprise value instead of market capitalisation. That
+    asks what the dividend yields on the whole capital structure rather than on
+    the equity alone, so a leveraged company's yield falls towards what it
+    actually costs to own the business free of its debt. The two readings
+    diverge exactly where the leverage is, which is where a yield screen is
+    most likely to be picking up risk and calling it income.
     """
     if basis not in {"paid", "declared"}:
         raise ValueError(f"unknown basis {basis!r}; expected 'paid' or 'declared'")
+    if base not in {"market_cap", "enterprise_value"}:
+        raise ValueError(f"unknown base {base!r}; expected 'market_cap' or 'enterprise_value'")
     rows = rows_of(frame, period, "dividend_yield")
-    value = as_of(market, rows.index)
+    if base == "enterprise_value":
+        value = _enterprise_value_of(rows, market)
+    else:
+        value = as_of(market, rows.index)
     if basis == "paid" and "dividends_paid" in rows.columns:
         total = rows["dividends_paid"]
     else:
@@ -293,3 +306,43 @@ def payout_ratio(frame: pd.DataFrame, period: str = "annual", average_years: int
     if average_years > 1:
         return trailing_mean(result, average_years)
     return result
+
+
+def market_cap_to_research(
+    frame: pd.DataFrame, market: pd.Series, period: str = "annual"
+) -> pd.Series:
+    """Market capitalisation over annual R&D spending.
+
+    Catalogue id `market_cap_to_research`.
+
+    How many years of the current research budget the market is paying for.
+    Low readings are cheap only if the research is worth anything, which this
+    says nothing about: a company that has cut R&D to nothing reads as
+    spectacularly cheap right up to the point the pipeline empties.
+    """
+    require_fields(frame, ("research_and_development",), "market_cap_to_research")
+    rows = rows_of(frame, period, "market_cap_to_research")
+    spending = rows["research_and_development"]
+    value = as_of(market, rows.index)
+    return ratio_is_meaningless_when_negative(safe_divide(value, spending), spending, False)
+
+
+def market_cap_to_debt(frame: pd.DataFrame, market: pd.Series, period: str = "annual") -> pd.Series:
+    """Market capitalisation over interest-bearing debt.
+
+    Catalogue id `market_cap_to_debt`.
+
+    How much equity cushion stands in front of the lenders, at market prices
+    rather than at book. It moves with the share price where every
+    balance-sheet leverage ratio moves only when the accounts are published,
+    which is what makes it worth having alongside them and useless as a
+    substitute for them.
+
+    A company with no debt has no ratio. That is NaN here rather than infinity,
+    and reads as "nothing to cover".
+    """
+    require_fields(frame, ("total_debt",), "market_cap_to_debt")
+    rows = rows_of(frame, period, "market_cap_to_debt")
+    debt = rows["total_debt"]
+    value = as_of(market, rows.index)
+    return ratio_is_meaningless_when_negative(safe_divide(value, debt), debt, False)

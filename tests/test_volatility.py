@@ -324,9 +324,10 @@ def test_weekly_volatility_says_what_index_it_needs() -> None:
 
 
 def test_every_other_factor_works_on_a_plain_integer_index() -> None:
-    """The requirement is one factor's, not the package's. If a second one
-    acquires it, this test says so rather than letting it be discovered by a
-    caller."""
+    """The requirement belongs to three named factors, not to the package. The
+    list is spelled out rather than counted: a new factor that quietly acquires
+    a date requirement should fail here, where it is a decision, rather than at
+    a caller who passed a plain index."""
     from factorbase import compute, default_catalog
     from factorbase.errors import UnsupportedIndexError
     from factorbase.schema import Kind
@@ -351,4 +352,8 @@ def test_every_other_factor_works_on_a_plain_integer_index() -> None:
             compute(factor.id, frame)
         except UnsupportedIndexError:
             needs_dates.append(factor.id)
-    assert needs_dates == ["historical_volatility_weekly"]
+    assert sorted(needs_dates) == [
+        "historical_volatility_weekly",
+        "seasonal_hit_rate",
+        "seasonal_strength",
+    ]

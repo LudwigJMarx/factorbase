@@ -246,7 +246,7 @@ def test_every_candlestick_entry_returns_booleans(wobble: pd.DataFrame) -> None:
     from factorbase import default_catalog
 
     candles = [f for f in default_catalog() if f.family == "candlestick"]
-    assert len(candles) == 24
+    assert len(candles) >= 24
     for factor in candles:
         result = compute(factor.id, wobble)
         assert result.dtype == bool, factor.id

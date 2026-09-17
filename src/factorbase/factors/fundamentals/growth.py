@@ -25,6 +25,7 @@ _LINES = {
     "equity": "total_equity",
     "operating_cash_flow": "operating_cash_flow",
     "dividend": "dividend_per_share_paid",
+    "research": "research_and_development",
 }
 
 

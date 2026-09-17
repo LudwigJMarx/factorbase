@@ -439,3 +439,44 @@ def selling_climax(
     wide = span >= range_multiple * atr(prices, atr_periods)
     strong_close = (prices["close"] - prices["low"]) / span >= close_position
     return (declined & heavy & wide & strong_close).fillna(False).astype("bool")
+
+
+def gilligans_island_buy(
+    prices: pd.DataFrame, periods: int = 40, close_position: float = 0.5
+) -> pd.Series:
+    """Gap down to a new low, then a close back above the open.
+
+    Catalogue id `gilligans_island_buy`.
+
+    Cooper's setup, and the two halves are what make it one: the open has to
+    be below the prior window's low, so the gap reaches a price nobody traded
+    at in two months, and the close has to be at or above that open while
+    still sitting in the lower part of the bar. A bar that gaps down and keeps
+    falling is not this; a bar that gaps down and closes at its high is a
+    different and more obvious event.
+    """
+    require_columns(prices, ("open", "high", "low", "close"), "gilligans_island_buy")
+    prior_low = prices["low"].shift(1).rolling(periods, min_periods=periods).min()
+    span = (prices["high"] - prices["low"]).where(prices["high"] != prices["low"])
+    position = (prices["close"] - prices["low"]) / span
+    gapped = prices["open"] < prior_low
+    held = prices["close"] >= prices["open"]
+    return (gapped & held & (position <= close_position)).fillna(False).astype("bool")
+
+
+def gilligans_island_sell(
+    prices: pd.DataFrame, periods: int = 40, close_position: float = 0.5
+) -> pd.Series:
+    """Gap up to a new high, then a close back below the open.
+
+    Catalogue id `gilligans_island_sell`.
+
+    The mirror of the buy setup.
+    """
+    require_columns(prices, ("open", "high", "low", "close"), "gilligans_island_sell")
+    prior_high = prices["high"].shift(1).rolling(periods, min_periods=periods).max()
+    span = (prices["high"] - prices["low"]).where(prices["high"] != prices["low"])
+    position = (prices["close"] - prices["low"]) / span
+    gapped = prices["open"] > prior_high
+    rejected = prices["close"] <= prices["open"]
+    return (gapped & rejected & (position >= 1.0 - close_position)).fillna(False).astype("bool")

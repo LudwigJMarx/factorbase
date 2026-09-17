@@ -27,7 +27,7 @@ factors:
         name: Reported line
         dtype: str
         default: revenue
-        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend]
+        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend, research]
         description: Which line of the accounts the growth is measured on.
       - id: period
         name: Reporting basis
@@ -47,7 +47,7 @@ factors:
         dtype: bool
         default: false
         description: Return the number even where the starting value was not positive.
-    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid]
+    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid, research_and_development]
     unit: percent
     direction: higher
     period: ttm
@@ -74,7 +74,7 @@ factors:
         name: Reported line
         dtype: str
         default: revenue
-        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend]
+        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend, research]
         description: Which line of the accounts the growth is measured on.
       - id: period
         name: Reporting basis
@@ -89,7 +89,7 @@ factors:
         minimum: 1
         maximum: 100
         description: How many rows of that basis the growth compounds over.
-    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid]
+    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid, research_and_development]
     unit: percent
     direction: higher
     period: annual
@@ -118,7 +118,7 @@ factors:
         name: Reported line
         dtype: str
         default: revenue
-        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend]
+        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend, research]
         description: Which line of the accounts the stability is measured on.
       - id: period
         name: Reporting basis
@@ -133,7 +133,7 @@ factors:
         minimum: 3
         maximum: 100
         description: How many rows the line is fitted through.
-    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid]
+    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid, research_and_development]
     unit: ratio
     direction: higher
     period: annual
@@ -160,7 +160,7 @@ factors:
         name: Reported line
         dtype: str
         default: revenue
-        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend]
+        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend, research]
         description: Which line of the accounts the growth is measured on.
       - id: period
         name: Reporting basis
@@ -175,7 +175,7 @@ factors:
         minimum: 2
         maximum: 100
         description: How many growth rates the mean and dispersion span.
-    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid]
+    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid, research_and_development]
     unit: ratio
     direction: higher
     period: annual
@@ -202,7 +202,7 @@ factors:
         name: Reported line
         dtype: str
         default: revenue
-        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend]
+        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend, research]
         description: Which line of the accounts the change is measured on.
       - id: period
         name: Reporting basis
@@ -217,7 +217,7 @@ factors:
         minimum: 1
         maximum: 1000
         description: How many rows back the comparison point sits.
-    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid]
+    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid, research_and_development]
     unit: currency
     direction: higher
     period: annual
@@ -244,14 +244,14 @@ factors:
         name: Reported line
         dtype: str
         default: revenue
-        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend]
+        choices: [revenue, net_income, eps, ebit, ebitda, equity, operating_cash_flow, free_cash_flow, dividend, research]
         description: Which line of the accounts the growth is measured on.
       - id: allow_negative_base
         name: Allow a negative base
         dtype: bool
         default: false
         description: Return the number even where the starting value was not positive.
-    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid]
+    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid, research_and_development]
     unit: percent
     direction: higher
     period: quarterly
@@ -274,7 +274,7 @@ factors:
       - latex: 'yg_t = \left( \frac{X_t}{X_{t-4}} - 1 \right) \cdot 100'
         note: Quarterly rows only.
     parameters: *quarterly_growth
-    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid]
+    inputs: [revenue, net_income, eps_diluted, ebit, ebitda, total_equity, operating_cash_flow, capital_expenditure, free_cash_flow, dividend_per_share_paid, research_and_development]
     unit: percent
     direction: higher
     period: quarterly
