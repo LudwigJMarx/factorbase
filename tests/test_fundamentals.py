@@ -521,3 +521,136 @@ def test_size_factors_return_the_reported_lines(accounts: pd.DataFrame) -> None:
     ttm = accounts[accounts["period"] == "ttm"]
     assert revenue(accounts).iloc[-1] == pytest.approx(ttm["revenue"].iloc[-1])
     assert net_income(accounts).iloc[-1] == pytest.approx(ttm["net_income"].iloc[-1])
+
+
+# ── Against identities that hold outside this package ───────────────────────
+#
+# The tests above check each ratio against its own arithmetic. An identity
+# holds between several of them, comes from accounting rather than from this
+# code, and therefore fails when any one of them is wrong.
+
+
+def test_dupont_identity_holds(accounts: pd.DataFrame) -> None:
+    """Return on equity is the net margin, times asset turnover, times the
+    equity multiplier. DuPont, 1919, and nothing to do with this package.
+
+    Taken on closing balances so that the three factors cancel exactly; the
+    default averages the balance, which is the better ratio and not an
+    identity.
+    """
+    rows = accounts[accounts["period"] == "annual"]
+    turnover = rows["revenue"] / rows["total_assets"]
+    multiplier = rows["total_assets"] / rows["total_equity"]
+    margin = net_margin(accounts) / 100.0
+
+    expected = (margin * turnover * multiplier * 100.0).iloc[-1]
+    assert return_on_equity(accounts, average_balance=False).iloc[-1] == pytest.approx(expected)
+
+
+def test_return_on_equity_is_return_on_assets_times_the_equity_multiplier(
+    accounts: pd.DataFrame,
+) -> None:
+    """The second half of the same identity, and the reason the gap between the
+    two ratios is a direct read on leverage."""
+    rows = accounts[accounts["period"] == "annual"]
+    multiplier = (rows["total_assets"] / rows["total_equity"]).iloc[-1]
+    expected = return_on_assets(accounts, average_balance=False).iloc[-1] * multiplier
+    assert return_on_equity(accounts, average_balance=False).iloc[-1] == pytest.approx(expected)
+
+
+def test_enterprise_value_identity_across_the_multiples(
+    accounts: pd.DataFrame, market_value: pd.Series
+) -> None:
+    """EV/Sales divided by EV/EBIT is the EBIT margin. Both multiples share a
+    numerator, so the identity fails if either denominator is picked wrong."""
+    ratio = (
+        ev_to_sales(accounts, market_value).iloc[-1] / ev_to_ebit(accounts, market_value).iloc[-1]
+    )
+    assert ratio == pytest.approx(ebit_margin(accounts, period="ttm").iloc[-1] / 100.0)
+
+
+def test_price_multiples_and_yields_are_reciprocal(
+    accounts: pd.DataFrame, market_value: pd.Series
+) -> None:
+    """Stated in two entries. If it fails, one of them divides the wrong way."""
+    pairs = (
+        (price_to_earnings(accounts, market_value), earnings_yield(accounts, market_value)),
+        (
+            price_to_free_cash_flow(accounts, market_value),
+            free_cash_flow_yield(accounts, market_value),
+        ),
+    )
+    for multiple, yields in pairs:
+        assert np.allclose(multiple.dropna() * yields.dropna() / 100.0, 1.0)
+
+
+def test_gross_ebit_and_net_margins_are_ordered(accounts: pd.DataFrame) -> None:
+    """Each line of the income statement is below the one above it, so for a
+    profitable company the margins fall in the same order. An entry that read
+    the wrong column would break the ordering."""
+    assert (
+        gross_margin(accounts).iloc[-1]
+        > ebitda_margin(accounts).iloc[-1]
+        > ebit_margin(accounts).iloc[-1]
+        > pretax_margin(accounts).iloc[-1]
+        > net_margin(accounts).iloc[-1]
+    )
+
+
+def test_liquidity_ratios_are_ordered_by_construction(accounts: pd.DataFrame) -> None:
+    """Cash is a subset of current assets less inventory, which is a subset of
+    current assets. The three ratios cannot come out in any other order."""
+    assert (
+        current_ratio(accounts).iloc[-1]
+        >= quick_ratio(accounts).iloc[-1]
+        >= cash_ratio(accounts).iloc[-1]
+    )
+
+
+def test_ohlson_coefficients_match_the_published_table(accounts: pd.DataFrame) -> None:
+    """Each indicator's coefficient is checked by flipping it on its own.
+
+    Ohlson (1980), table 4, model one: the two-year-loss indicator carries
+    +0.285 and the negative-equity indicator carries -1.72. Changing nothing
+    else, the score has to move by exactly those amounts.
+    """
+    rows = accounts[accounts["period"] == "annual"]
+    base = ohlson_o_score(accounts)
+
+    losing = accounts.copy()
+    is_annual = losing["period"] == "annual"
+    losing.loc[is_annual, "net_income"] = -1.0
+    only_the_indicator = losing.copy()
+    only_the_indicator.loc[is_annual, "net_income"] = 1e-9
+
+    with_two_losses = ohlson_o_score(losing).iloc[-1]
+    without = ohlson_o_score(only_the_indicator).iloc[-1]
+    assert with_two_losses - without == pytest.approx(0.285, abs=0.02)
+
+    insolvent = accounts.copy()
+    insolvent.loc[is_annual, "total_liabilities"] = rows["total_assets"].to_numpy() * 1.0001
+    solvent = accounts.copy()
+    solvent.loc[is_annual, "total_liabilities"] = rows["total_assets"].to_numpy() * 0.9999
+    difference = ohlson_o_score(insolvent).iloc[-1] - ohlson_o_score(solvent).iloc[-1]
+    assert difference == pytest.approx(-1.72, abs=0.01)
+    assert not np.isnan(base.iloc[-1])
+
+
+def test_free_cash_flow_identity(accounts: pd.DataFrame) -> None:
+    """Operating cash flow less capital expenditure, read off the frame itself."""
+    ttm = accounts[accounts["period"] == "ttm"]
+    assert free_cash_flow(accounts).iloc[-1] == pytest.approx(
+        ttm["operating_cash_flow"].iloc[-1] - ttm["capital_expenditure"].iloc[-1]
+    )
+
+
+def test_compound_growth_agrees_with_the_standard_library(accounts: pd.DataFrame) -> None:
+    """The geometric mean is in the standard library. A five-year CAGR is that
+    mean of the five yearly ratios, less one."""
+    import statistics
+
+    rows = accounts[accounts["period"] == "annual"]
+    revenue = rows["revenue"].to_numpy()
+    ratios = [revenue[i] / revenue[i - 1] for i in range(len(revenue) - 5, len(revenue))]
+    expected = (statistics.geometric_mean(ratios) - 1.0) * 100.0
+    assert compound_annual_growth(accounts, years=5).iloc[-1] == pytest.approx(expected)

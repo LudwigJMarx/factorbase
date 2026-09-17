@@ -366,3 +366,72 @@ def test_pivot_breakout_fires_once_the_pivot_high_is_actually_cleared() -> None:
     fired = pivot_breakout(frame, left=5, right=5)
     assert fired.sum() == 1
     assert bool(fired.iloc[-1])
+
+
+# ── Against the definitions, re-derived from raw columns ────────────────────
+
+
+def test_golden_cross_agrees_with_a_hand_written_crossing(wobble: pd.DataFrame) -> None:
+    """Both averages and the crossing rule written out here, without the
+    package's moving_average dispatch or its _crossed_above helper."""
+    fast_periods, slow_periods = 20, 50
+    closes = wobble["close"].tolist()
+
+    def mean_at(position: int, periods: int) -> float | None:
+        if position < periods - 1:
+            return None
+        window = closes[position - periods + 1 : position + 1]
+        return sum(window) / periods
+
+    expected = []
+    for position in range(len(closes)):
+        fast, slow = mean_at(position, fast_periods), mean_at(position, slow_periods)
+        previous_fast = mean_at(position - 1, fast_periods) if position else None
+        previous_slow = mean_at(position - 1, slow_periods) if position else None
+        expected.append(
+            fast is not None
+            and slow is not None
+            and previous_fast is not None
+            and previous_slow is not None
+            and fast > slow
+            and previous_fast <= previous_slow
+        )
+
+    assert sum(expected) > 0
+    assert golden_cross(wobble, fast_periods, slow_periods).tolist() == expected
+
+
+def test_a_crossing_up_and_a_crossing_down_never_share_a_bar(
+    wobble: pd.DataFrame,
+) -> None:
+    """Follows from the definitions alone: the relation cannot change in both
+    directions on the same bar."""
+    pairs = (
+        (price_crosses_above_ma, price_crosses_below_ma),
+        (golden_cross, death_cross),
+        (macd_cross_up, macd_cross_down),
+    )
+    for up, down in pairs:
+        assert not (up(wobble) & down(wobble)).any()
+
+
+def test_new_high_and_new_low_agree_with_a_running_extreme(
+    wobble: pd.DataFrame,
+) -> None:
+    """The running maximum kept by hand, and the event read off the change in
+    whether the close stands at it."""
+    periods = 60
+    closes = wobble["close"].tolist()
+    expected = []
+    was_at_high = False
+    for position in range(len(closes)):
+        if position < periods - 1:
+            expected.append(False)
+            continue
+        window = closes[position - periods + 1 : position + 1]
+        at_high = closes[position] >= max(window)
+        expected.append(at_high and not was_at_high)
+        was_at_high = at_high
+
+    assert sum(expected) > 0
+    assert new_high(wobble, periods).tolist() == expected

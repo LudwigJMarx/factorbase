@@ -251,3 +251,112 @@ def test_every_candlestick_entry_returns_booleans(wobble: pd.DataFrame) -> None:
         result = compute(factor.id, wobble)
         assert result.dtype == bool, factor.id
         assert len(result) == len(wobble), factor.id
+
+
+# ── Against the definitions, re-derived from raw OHLC ────────────────────────
+#
+# The tests above hand each pattern a bar built to satisfy its rule, which
+# proves the rule fires and not that the rule is the published one. What
+# follows re-states each definition from the raw columns, without calling
+# `anatomy` or any other helper the implementations use, and asserts that the
+# package agrees across a whole series rather than on one bar.
+
+
+def raw(frame: pd.DataFrame) -> dict[str, list[float]]:
+    return {name: frame[name].tolist() for name in ("open", "high", "low", "close")}
+
+
+def test_engulfing_agrees_with_the_definition_over_a_whole_series(
+    wobble: pd.DataFrame,
+) -> None:
+    """Nison: the second body covers the first, and the shadows play no part."""
+    o, h, low, c = raw(wobble).values()
+    expected = [False]
+    for i in range(1, len(c)):
+        previous_bearish = c[i - 1] < o[i - 1]
+        top, bottom = max(o[i], c[i]), min(o[i], c[i])
+        previous_top, previous_bottom = max(o[i - 1], c[i - 1]), min(o[i - 1], c[i - 1])
+        expected.append(
+            c[i] > o[i]
+            and previous_bearish
+            and bottom <= previous_bottom
+            and top >= previous_top
+            and abs(c[i] - o[i]) > abs(c[i - 1] - o[i - 1])
+        )
+    result = compute("cs_bullish_engulfing", wobble).tolist()
+    assert sum(expected) > 10
+    assert result == expected
+
+
+def test_harami_is_the_containment_the_other_way_round(wobble: pd.DataFrame) -> None:
+    o, h, low, c = raw(wobble).values()
+    expected = [False]
+    for i in range(1, len(c)):
+        top, bottom = max(o[i], c[i]), min(o[i], c[i])
+        previous_top, previous_bottom = max(o[i - 1], c[i - 1]), min(o[i - 1], c[i - 1])
+        expected.append(
+            c[i] > o[i]
+            and c[i - 1] < o[i - 1]
+            and top <= previous_top
+            and bottom >= previous_bottom
+            and abs(c[i] - o[i]) < abs(c[i - 1] - o[i - 1])
+        )
+    assert sum(expected) > 5
+    assert compute("cs_bullish_harami", wobble).tolist() == expected
+
+
+def test_no_bar_is_both_an_engulfing_and_a_harami(wobble: pd.DataFrame) -> None:
+    """One contains the other; they cannot hold at once, in either polarity."""
+    for engulfing, harami in (
+        ("cs_bullish_engulfing", "cs_bullish_harami"),
+        ("cs_bearish_engulfing", "cs_bearish_harami"),
+    ):
+        both = compute(engulfing, wobble) & compute(harami, wobble)
+        assert not both.any(), f"{engulfing} and {harami} fired on the same bar"
+
+
+def test_doji_variants_are_doji(wobble: pd.DataFrame) -> None:
+    """Dragonfly and gravestone add a shadow condition to the doji rule, so
+    every bar they fire on must also be a doji under the same threshold."""
+    plain = compute("cs_doji", wobble)
+    for narrow in ("cs_dragonfly_doji", "cs_gravestone_doji"):
+        assert (compute(narrow, wobble) <= plain).all()
+
+
+def test_a_marubozu_is_a_belt_hold_but_not_the_reverse(wobble: pd.DataFrame) -> None:
+    """A marubozu has no shadow at either end; a belt hold tolerates one at the
+    far end. The stricter pattern is a subset of the looser one."""
+    marubozu = compute("cs_white_marubozu", wobble)
+    belt = compute("cs_bullish_belt_hold", wobble)
+    assert (marubozu <= belt).all()
+
+
+def test_every_candlestick_agrees_with_its_own_polarity(wobble: pd.DataFrame) -> None:
+    """A pattern named bullish must fire only on an up bar, and one named
+    bearish only on a down bar. Checked against the raw columns."""
+    up = wobble["close"] > wobble["open"]
+    down = wobble["close"] < wobble["open"]
+    bullish = [
+        "cs_bullish_engulfing",
+        "cs_bullish_harami",
+        "cs_bullish_belt_hold",
+        "cs_bullish_popgun",
+        "cs_big_white_candle",
+        "cs_white_marubozu",
+        "cs_above_the_stomach",
+        "cs_morning_star",
+    ]
+    bearish = [
+        "cs_bearish_engulfing",
+        "cs_bearish_harami",
+        "cs_bearish_belt_hold",
+        "cs_bearish_popgun",
+        "cs_big_black_candle",
+        "cs_black_marubozu",
+        "cs_below_the_stomach",
+        "cs_evening_star",
+    ]
+    for name in bullish:
+        assert (compute(name, wobble) <= up).all(), name
+    for name in bearish:
+        assert (compute(name, wobble) <= down).all(), name

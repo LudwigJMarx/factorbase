@@ -88,10 +88,17 @@ factors:
     family: volume
     summary: RSI on the typical price, with each bar weighted by the money traded.
     description: >-
-      The same construction as the RSI, except that each bar counts in
-      proportion to the money that changed hands rather than equally. An
-      advance on thin volume and one on heavy volume read identically on RSI
-      and differ here, which is the whole reason to prefer it.
+      Shaped like the RSI and weighted differently, and the difference is
+      larger than the usual one-line description admits. The RSI weights each
+      bar by how far the price moved. This weights it by the money that
+      changed hands, which is a level, and the size of the move never enters
+      at all - only its sign. Two up bars with the same turnover contribute
+      equally whether the price rose by a tick or by half.
+
+      The consequence is worth stating plainly: on constant volume the reading
+      reduces to the share of summed price levels standing on up bars, which
+      is close to a count of up days and nothing like an RSI. It earns its keep
+      where volume actually varies, and says little where it does not.
 
       Two bars count on neither side: one whose typical price is unchanged, and
       the first bar of the frame, which has no predecessor. Implementations

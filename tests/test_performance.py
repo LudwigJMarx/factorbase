@@ -116,3 +116,41 @@ def test_bars_of_history_skips_gaps(wobble: pd.DataFrame) -> None:
     holed = wobble.copy()
     holed.iloc[5:15, holed.columns.get_loc("close")] = np.nan
     assert bars_of_history(holed).iloc[-1] == float(len(holed) - 10)
+
+
+# ── Against references written outside this package ─────────────────────────
+
+
+def test_annualised_performance_against_a_compound_interest_table() -> None:
+    """Values from ordinary compound interest, not from this package.
+
+    A 44 percent gain over two years is 1.44, whose square root is 1.20, so
+    20 percent a year. A 72.8 percent gain over three years is 1.728, whose
+    cube root is 1.20, so 20 percent a year again.
+    """
+    for total, years in ((1.44, 2), (1.728, 3)):
+        bars = 250 * years
+        dates = pd.bdate_range("2015-01-01", periods=bars + 1)
+        closes = 100.0 * total ** (np.arange(bars + 1) / bars)
+        frame = pd.DataFrame({"close": closes}, index=dates)
+        result = annualised_performance(frame, periods=bars, trading_days=250).iloc[-1]
+        assert result == pytest.approx(20.0)
+
+
+def test_winning_days_counted_by_hand() -> None:
+    """Closes 10, 11, 11, 12, 11, 13. Changes: up, flat, up, down, up.
+    Three of five closed up, so 60 percent, with the flat bar counted as a loss."""
+    frame = pd.DataFrame({"close": [10.0, 11.0, 11.0, 12.0, 11.0, 13.0]})
+    assert winning_days(frame, periods=5).iloc[-1] == pytest.approx(60.0)
+
+
+def test_distance_to_high_and_low_span_the_range_by_hand() -> None:
+    """Closes 100, 120, 90, 110 over a window of four.
+    High 120, low 90. From 110 that is -8.3333 percent and +22.2222 percent."""
+    frame = pd.DataFrame({"close": [100.0, 120.0, 90.0, 110.0]})
+    assert distance_to_high(frame, periods=4).iloc[-1] == pytest.approx(
+        (110.0 / 120.0 - 1.0) * 100.0
+    )
+    assert distance_to_low(frame, periods=4).iloc[-1] == pytest.approx((110.0 / 90.0 - 1.0) * 100.0)
+    assert distance_to_high(frame, periods=4).iloc[-1] == pytest.approx(-8.3333, abs=1e-4)
+    assert distance_to_low(frame, periods=4).iloc[-1] == pytest.approx(22.2222, abs=1e-4)

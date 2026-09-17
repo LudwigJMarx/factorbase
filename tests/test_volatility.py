@@ -199,3 +199,111 @@ def test_distance_to_upper_band_turns_negative_above_it(wobble: pd.DataFrame) ->
     above = percent_b > 1.0
     assert above.any()
     assert (distance[above] < 0.0).all()
+
+
+# ── Against references written outside this package ─────────────────────────
+#
+# Everything above recomputes a formula this package also implements. That
+# catches a wrong implementation of a right formula and cannot catch a wrong
+# formula. What follows compares against the standard library, against closed
+# forms, and against a Wilder loop written out here from the definition rather
+# than called from `_common`.
+
+
+def test_bollinger_deviation_is_the_population_one_per_the_standard_library(
+    wobble: pd.DataFrame,
+) -> None:
+    """statistics.pstdev and statistics.stdev are two different functions in
+    the standard library. The entry says which one the bands use, so the test
+    asserts it against both rather than against this package's own call."""
+    import statistics
+
+    periods, position = 20, 100
+    window = wobble["close"].iloc[position - periods + 1 : position + 1].tolist()
+    middle = statistics.fmean(window)
+
+    bands = bollinger_bands(wobble, periods, 2.0)
+    assert bands["middle"].iloc[position] == pytest.approx(middle)
+    assert bands["upper"].iloc[position] == pytest.approx(middle + 2.0 * statistics.pstdev(window))
+    assert bands["upper"].iloc[position] != pytest.approx(middle + 2.0 * statistics.stdev(window))
+
+
+def test_historical_volatility_is_the_sample_deviation_per_the_standard_library(
+    wobble: pd.DataFrame,
+) -> None:
+    """The neighbouring entry uses the population deviation and this one uses
+    the sample deviation. They disagree on purpose, so both get pinned to the
+    standard library's two functions."""
+    import math
+    import statistics
+
+    periods, position = 250, 350
+    closes = wobble["close"].tolist()
+    log_returns = [
+        math.log(closes[i] / closes[i - 1]) for i in range(position - periods + 1, position + 1)
+    ]
+    expected = statistics.stdev(log_returns) * math.sqrt(250) * 100.0
+
+    assert historical_volatility(wobble, periods).iloc[position] == pytest.approx(expected)
+    population = statistics.pstdev(log_returns) * math.sqrt(250) * 100.0
+    assert historical_volatility(wobble, periods).iloc[position] != pytest.approx(population)
+
+
+def test_historical_volatility_of_a_two_state_series_has_a_closed_form() -> None:
+    """Log returns alternating between +r and -r have a sample deviation of
+    exactly r*sqrt(n/(n-1)) about a mean of zero, for an even count."""
+    import math
+
+    periods = 100
+    r = 0.01
+    values = [100.0]
+    for i in range(400):
+        values.append(values[-1] * math.exp(r if i % 2 == 0 else -r))
+    frame = pd.DataFrame({"close": values})
+
+    expected = r * math.sqrt(periods / (periods - 1)) * math.sqrt(250) * 100.0
+    assert historical_volatility(frame, periods).iloc[-1] == pytest.approx(expected)
+
+
+def test_atr_matches_a_wilder_loop_written_out_here(wobble: pd.DataFrame) -> None:
+    """True range and the smoothing are both written out from the definition,
+    without touching true_range() or wilder_smoothing()."""
+    periods = 14
+    high = wobble["high"].tolist()
+    low = wobble["low"].tolist()
+    close = wobble["close"].tolist()
+
+    ranges = [high[0] - low[0]]
+    for i in range(1, len(close)):
+        ranges.append(
+            max(high[i] - low[i], abs(high[i] - close[i - 1]), abs(low[i] - close[i - 1]))
+        )
+
+    expected = [float("nan")] * len(ranges)
+    expected[periods - 1] = sum(ranges[:periods]) / periods
+    for i in range(periods, len(ranges)):
+        expected[i] = ((periods - 1) * expected[i - 1] + ranges[i]) / periods
+
+    result = atr(wobble, periods).to_numpy()
+    assert np.allclose(result[periods - 1 :], expected[periods - 1 :])
+
+
+def test_max_drawdown_of_a_hand_walked_path() -> None:
+    """Walked by hand: peak 200 at index 1, trough 80 at index 4, so -60 percent."""
+    closes = [100.0, 200.0, 150.0, 120.0, 80.0, 90.0, 95.0]
+    frame = pd.DataFrame({"close": closes})
+    assert max_drawdown(frame, periods=7).iloc[-1] == pytest.approx(-60.0)
+
+
+def test_average_drawdown_of_a_hand_walked_path() -> None:
+    """Walked by hand with a window of 4 over seven closes.
+
+    Running peaks: 100, 110, 110, 110 at indices 3 to 6.
+    Underwater:      0,   0, -9.0909, -18.1818.
+    Mean of those four: -6.8182 percent.
+    """
+    closes = [100.0, 90.0, 80.0, 100.0, 110.0, 100.0, 90.0]
+    frame = pd.DataFrame({"close": closes})
+    expected = (0.0 + 0.0 + (100.0 / 110.0 - 1.0) * 100.0 + (90.0 / 110.0 - 1.0) * 100.0) / 4.0
+    assert expected == pytest.approx(-6.8182, abs=1e-4)
+    assert average_drawdown(frame, periods=4).iloc[-1] == pytest.approx(expected)

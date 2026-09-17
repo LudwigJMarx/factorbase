@@ -280,3 +280,70 @@ def test_factor_percentile_and_factor_z_score_are_reachable_by_id(
 
     assert compute("factor_percentile", cross_section).equals(percentile(cross_section))
     assert compute("factor_z_score", cross_section).equals(z_score(cross_section))
+
+
+# ── Against references written outside this package ─────────────────────────
+
+
+def test_z_score_agrees_with_the_standard_library() -> None:
+    """statistics.fmean and statistics.stdev, not this package's own moments."""
+    import statistics
+
+    values = pd.Series({f"N{i}": float(i) * 1.7 - 3.0 for i in range(40)})
+    mean = statistics.fmean(values.tolist())
+    deviation = statistics.stdev(values.tolist())
+    expected = (values - mean) / deviation
+    assert np.allclose(z_score(values).to_numpy(), expected.to_numpy())
+
+
+def test_percentile_agrees_with_a_counted_position() -> None:
+    """Counted by hand: the share of the set each instrument stands above."""
+    values = pd.Series({"A": 10.0, "B": 20.0, "C": 30.0, "D": 40.0, "E": 50.0})
+    scored = percentile(values)
+    for name, value in values.items():
+        below = sum(1 for other in values if other < value)
+        assert scored[name] == pytest.approx(below / (len(values) - 1) * 100.0)
+
+
+def test_rank_agrees_with_pythons_own_sort() -> None:
+    """sorted() is outside this package and settles the order on its own."""
+    values = pd.Series({"A": 4.0, "B": 1.0, "C": 9.0, "D": 7.0})
+    order = sorted(values.items(), key=lambda pair: -pair[1])
+    ranked = rank(values)
+    for position, (name, _) in enumerate(order, start=1):
+        assert ranked[name] == position
+
+
+def test_quantile_buckets_agree_with_numpy_quantiles() -> None:
+    """numpy computes the cut points; the buckets have to fall on the same side
+    of them. Skewed input on purpose, since that is where equal-count and
+    equal-width buckets part company."""
+    values = pd.Series({f"N{i}": float(i) ** 3 for i in range(100)})
+    buckets = quantile_bucket(values, buckets=4)
+    cuts = np.quantile(values.to_numpy(), [0.25, 0.5, 0.75])
+
+    for name, value in values.items():
+        above = int(sum(value > cut for cut in cuts))
+        expected = 4 - above
+        assert abs(buckets[name] - expected) <= 1, name
+
+
+def test_composite_of_one_component_is_that_components_percentile() -> None:
+    """A weighted mean of one thing is that thing, whatever the weight."""
+    values = pd.Series({"A": 5.0, "B": 1.0, "C": 9.0, "D": 3.0})
+    for weight in (0.1, 1.0, 7.5):
+        score = composite_score({"only": values}, {"only": weight}, {"only": "higher"})
+        assert np.allclose(score.to_numpy(), percentile(values).to_numpy())
+
+
+def test_composite_of_a_factor_against_itself_reversed_is_flat() -> None:
+    """Ranking a factor up and the same factor down, equally weighted, cancels
+    to the midpoint for every instrument. If it does not, the direction flag is
+    not doing what it claims."""
+    values = pd.Series({"A": 5.0, "B": 1.0, "C": 9.0, "D": 3.0})
+    score = composite_score(
+        {"up": values, "down": values},
+        {"up": 0.5, "down": 0.5},
+        {"up": "higher", "down": "lower"},
+    )
+    assert np.allclose(score.to_numpy(), 50.0)

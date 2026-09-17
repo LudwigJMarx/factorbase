@@ -136,3 +136,48 @@ def test_every_moving_average_method_is_reachable(wobble: pd.DataFrame) -> None:
 def test_unknown_method_is_rejected(wobble: pd.DataFrame) -> None:
     with pytest.raises(ValueError, match="unknown moving-average method"):
         price_to_ma_distance(wobble, periods=30, method="hull")
+
+
+# ── Against references written outside this package ─────────────────────────
+
+
+def test_sma_agrees_with_the_standard_library(wobble: pd.DataFrame) -> None:
+    """statistics.fmean, not a second call to pandas' rolling mean."""
+    import statistics
+
+    periods = 30
+    closes = wobble["close"].tolist()
+    result = sma(wobble, periods)
+    for position in (29, 100, 250, len(closes) - 1):
+        window = closes[position - periods + 1 : position + 1]
+        assert result.iloc[position] == pytest.approx(statistics.fmean(window))
+
+
+def test_wma_agrees_with_a_hand_written_weighted_sum(wobble: pd.DataFrame) -> None:
+    periods = 10
+    closes = wobble["close"].tolist()
+    result = wma(wobble, periods)
+    for position in (9, 120, 399):
+        window = closes[position - periods + 1 : position + 1]
+        numerator = sum(value * (index + 1) for index, value in enumerate(window))
+        assert result.iloc[position] == pytest.approx(numerator / (periods * (periods + 1) / 2))
+
+
+def test_the_three_averages_coincide_on_a_flat_series() -> None:
+    """Any weighting of identical numbers is that number. A weighting bug that
+    keeps the weights summing to one survives this; one that does not, does not."""
+    flat = pd.DataFrame({"close": [42.0] * 100})
+    for average in (sma, ema, wma):
+        assert average(flat, periods=20).iloc[-1] == pytest.approx(42.0)
+
+
+def test_ema_alpha_is_two_over_n_plus_one(wobble: pd.DataFrame) -> None:
+    """Derived from the published relation between a span and its smoothing
+    constant, then applied by hand to two consecutive readings."""
+    periods = 20
+    alpha = 2.0 / (periods + 1)
+    result = ema(wobble, periods)
+    close = wobble["close"]
+    for position in (100, 200, 399):
+        recovered = (result.iloc[position] - (1 - alpha) * result.iloc[position - 1]) / alpha
+        assert recovered == pytest.approx(close.iloc[position])

@@ -118,3 +118,95 @@ def test_volume_trend_reads_the_average_not_one_bar() -> None:
     spiked.iloc[-1, 0] = 10_000.0
     assert volume_trend(quiet, 20, 20).iloc[-1] == pytest.approx(0.0)
     assert volume_trend(spiked, 20, 20).iloc[-1] < 500.0
+
+
+# ── Against references written outside this package ─────────────────────────
+
+
+def test_money_flow_index_matches_a_hand_walked_window() -> None:
+    """Five bars, arithmetic done by hand from the published definition.
+
+    Typical prices 10, 11, 10, 12, 12 on volumes 100, 200, 300, 400, 500.
+    Changes: up, down, up, unchanged.
+    Positive flow over the last four bars: 11*200 + 12*400 = 7000.
+    Negative flow:                          10*300         = 3000.
+    MFI = 100 * 7000 / 10000 = 70.
+    """
+    frame = pd.DataFrame(
+        {
+            "high": [10.0, 11.0, 10.0, 12.0, 12.0],
+            "low": [10.0, 11.0, 10.0, 12.0, 12.0],
+            "close": [10.0, 11.0, 10.0, 12.0, 12.0],
+            "volume": [100.0, 200.0, 300.0, 400.0, 500.0],
+        }
+    )
+    assert money_flow_index(frame, periods=4).iloc[-1] == pytest.approx(70.0)
+
+
+def test_money_flow_index_weights_a_level_not_the_size_of_the_move() -> None:
+    """Two frames whose final two bars are identical in typical price, volume
+    and direction, and wildly different in how far the price travelled to get
+    there. The measure has to return the same number for both.
+
+    This is the property that separates it from the RSI and the one the word
+    "same construction" hides: a bar's contribution is its turnover, and the
+    size of its move never enters at all, only the sign.
+    """
+
+    def frame_of(typical: list[float]) -> pd.DataFrame:
+        series = pd.Series(typical)
+        return pd.DataFrame(
+            {
+                "high": series,
+                "low": series,
+                "close": series,
+                "volume": pd.Series(1.0, index=series.index),
+            }
+        )
+
+    crawled = frame_of([99.99, 100.0, 99.0])  # rose by 0.01, then fell
+    leapt = frame_of([50.0, 100.0, 99.0])  # rose by 50.00, then fell
+
+    assert money_flow_index(crawled, periods=2).iloc[-1] == pytest.approx(
+        money_flow_index(leapt, periods=2).iloc[-1]
+    )
+    # Positive flow 100 on the middle bar, negative flow 99 on the last.
+    assert money_flow_index(crawled, periods=2).iloc[-1] == pytest.approx(
+        100.0 * 100.0 / (100.0 + 99.0)
+    )
+
+
+def test_money_flow_index_on_flat_volume_is_a_share_of_price_levels() -> None:
+    """With constant volume the turnover weight reduces to the typical price
+    itself, so the reading is the share of summed price levels standing on up
+    bars. Computed here from the typical prices directly."""
+    rng = np.random.default_rng(5)
+    n = 60
+    close = pd.Series(100.0 + np.cumsum(rng.normal(0, 1.0, n)))
+    frame = pd.DataFrame(
+        {"high": close, "low": close, "close": close, "volume": pd.Series(1.0, index=close.index)}
+    )
+    periods, position = 14, 40
+    window = slice(position - periods + 1, position + 1)
+    levels = close.iloc[window]
+    changes = close.diff().iloc[window]
+    up = float(levels[changes > 0].sum())
+    down = float(levels[changes < 0].sum())
+    assert money_flow_index(frame, periods).iloc[position] == pytest.approx(
+        100.0 * up / (up + down)
+    )
+
+
+def test_accumulation_line_matches_a_hand_walked_sum() -> None:
+    """Three bars. CLV of the first is +1, of the second -1, of the third 0.
+    Volumes 100, 200, 300, so the running total is 100, -100, -100."""
+    frame = pd.DataFrame(
+        {
+            "high": [10.0, 10.0, 10.0],
+            "low": [8.0, 8.0, 8.0],
+            "close": [10.0, 8.0, 9.0],
+            "volume": [100.0, 200.0, 300.0],
+        }
+    )
+    line = accumulation_distribution_line(frame)
+    assert line.tolist() == pytest.approx([100.0, -100.0, -100.0])
