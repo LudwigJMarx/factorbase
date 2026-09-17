@@ -332,9 +332,15 @@ factors:
       Measures how unusual the current price is against its own recent
       behaviour, scaled by how much that behaviour normally varies. The constant
       0.015 is not derived from anything; Lambert chose it so that roughly three
-      readings in four land between -100 and +100. Mean absolute deviation is
-      used rather than standard deviation, which is what separates this from a
-      plain z-score and makes it less sensitive to one outlier bar.
+      readings in four land between -100 and +100. Three in four, not all: the
+      measure is unbounded and readings beyond 300 happen. It is filed as a
+      ratio rather than as a bounded oscillator for that reason, which is what
+      distinguishes it from the RSI and the stochastics it is usually shelved
+      next to.
+
+      Mean absolute deviation is used rather than standard deviation, which is
+      what separates this from a plain z-score and makes it less sensitive to
+      one outlier bar.
     formulas:
       - latex: 'TP_t = \frac{H_t + L_t + C_t}{3}'
         note: The typical price.
@@ -350,7 +356,7 @@ factors:
         maximum: 100000
         description: Window for both the average and the mean deviation.
     inputs: [high, low, close]
-    unit: index
+    unit: ratio
     direction: undefined
     aliases: [commodity_channel_index]
     references:

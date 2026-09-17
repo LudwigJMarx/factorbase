@@ -15,6 +15,7 @@ wrong thing, or nothing.
 3. Every parameter an entry declares is accepted by that callable.
 4. Every `stable` entry is named by at least one test file.
 5. Every id that appears in an `aliases` list is not also a factor id.
+6. Every entry whose unit is `index` declares its output range.
 
 ── WHAT IT DOES NOT CHECK ──────────────────────────────────────────────────
 
@@ -22,6 +23,14 @@ Whether the implementation matches the formula. No checker can read LaTeX and
 compare it to code; that is what the tests in `tests/` are for. This script
 only confirms that a test exists and mentions the id, which is a weaker claim
 and is reported as such.
+
+── WHY CHECK 6 EXISTS ──────────────────────────────────────────────────────
+
+`index` means a bounded oscillator in this catalogue, so an entry claiming it
+and declining to say between which numbers is claiming something it has not
+stated. CCI was filed that way and is not bounded at all; the query that found
+it was one line against the built database, and this check is that query made
+permanent.
 
 ── WHY CHECK 4 PARSES INSTEAD OF SEARCHING ─────────────────────────────────
 
@@ -51,7 +60,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from factorbase.catalog import load_catalog  # noqa: E402
 from factorbase.errors import CatalogError  # noqa: E402
 from factorbase.registry import parameter_mismatch, resolve  # noqa: E402
-from factorbase.schema import Kind, Status  # noqa: E402
+from factorbase.schema import Kind, Status, Unit  # noqa: E402
 
 
 def _string_arguments(call: ast.Call) -> set[str]:
@@ -127,6 +136,11 @@ def main() -> int:
         for alias in factor.aliases:
             if alias in ids:
                 findings.append(f"{factor.id}: alias {alias!r} is also a factor id")
+
+        if factor.unit is Unit.INDEX and factor.output_range == (None, None):
+            findings.append(
+                f"{factor.id}: unit 'index' means a bounded oscillator, so state the range"
+            )
 
         if factor.implementation is None:
             if factor.status is Status.STABLE:
