@@ -72,3 +72,32 @@ def wobble() -> pd.DataFrame:
             "volume": pd.Series(rng.uniform(5e5, 5e6, size=n), index=close.index),
         }
     )
+
+
+@pytest.fixture
+def market() -> pd.Series:
+    """A benchmark series on the same dates as `wobble`, correlated but not identical."""
+    n = 400
+    rng = np.random.default_rng(31415)
+    steps = rng.normal(loc=0.03, scale=1.0, size=n)
+    return pd.Series(1000.0 + np.cumsum(steps), index=_business_days(n), name="close")
+
+
+@pytest.fixture
+def geared(market: pd.Series) -> pd.DataFrame:
+    """A price frame that is exactly twice the benchmark's move, with no noise.
+
+    Beta against it is 2 by construction and correlation is 1, so a test can
+    state the answer instead of recomputing the implementation.
+    """
+    returns = market.pct_change().fillna(0.0)
+    close = 100.0 * (1.0 + 2.0 * returns).cumprod()
+    return pd.DataFrame(
+        {
+            "open": close,
+            "high": close * 1.01,
+            "low": close * 0.99,
+            "close": close,
+            "volume": pd.Series(1_000_000.0, index=close.index),
+        }
+    )

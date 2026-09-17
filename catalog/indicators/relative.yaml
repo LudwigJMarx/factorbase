@@ -1,0 +1,343 @@
+# Measured against a benchmark. Every entry here but the first needs one.
+
+factors:
+  - id: relative_strength_levy
+    name: Relative Strength (Levy)
+    kind: indicator
+    family: relative
+    summary: Close divided by its own moving average.
+    description: >-
+      Levy's measure compares the instrument to its own past, not to anything
+      external, despite the name it is filed under. Above 1 the price sits above
+      its average. It is here because screeners list it under relative strength
+      and that is where readers look for it.
+
+      The usual window is 27 weeks, which is 130 trading days, and that is the
+      default. Levy's own work used weekly data over 26 weeks; the daily
+      equivalent is not identical, and nobody who quotes "RSL" says which they
+      mean.
+    formulas:
+      - latex: 'RSL_t = \frac{C_t}{SMA_t(C, n)}'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 130
+        minimum: 2
+        maximum: 100000
+        description: Window of the average, in bars.
+    inputs: [close]
+    unit: ratio
+    direction: higher
+    output_range: [0, null]
+    aliases: [rsl]
+    references:
+      - "Levy, R. A. (1967). Relative Strength as a Criterion for Investment Selection. Journal of Finance 22(4)."
+    implementation: factorbase.factors.relative:relative_strength_levy
+    status: stable
+
+  - id: relative_strength_line
+    name: Relative Strength Line
+    kind: indicator
+    family: relative
+    summary: Price divided by benchmark, rebased to 100 at the first common bar.
+    description: >-
+      The line that rises when the instrument beats the market, whichever way
+      the market went. Rebasing at the start of the loaded window makes it
+      readable, but the level still depends on where the window starts, so it
+      cannot be ranked across instruments. Rank on outperformance instead, or on
+      the line's distance from its own high.
+    formulas:
+      - latex: 'RS_t = \frac{C_t / B_t}{C_{t_0} / B_{t_0}} \cdot 100'
+        note: B is the benchmark close, t0 the first bar where both exist.
+    inputs: [close]
+    requires_benchmark: true
+    unit: index
+    direction: higher
+    output_range: [0, null]
+    references:
+      - "O'Neil, W. J. (2009). How to Make Money in Stocks, 4th ed., ch. 6."
+    implementation: factorbase.factors.relative:relative_strength_line
+    notes: >-
+      Level depends on the loaded window. Not comparable across instruments.
+    status: stable
+
+  - id: outperformance
+    name: Outperformance
+    kind: indicator
+    family: relative
+    summary: Instrument return minus benchmark return over n bars, in percentage points.
+    description: >-
+      A difference of two percentage returns, not a ratio of them. The
+      difference is what a reader expects from the word and it adds across
+      instruments; the ratio does neither, and is what a naive division
+      produces.
+    formulas:
+      - latex: 'O_t(n) = \left( \frac{C_t}{C_{t-n}} - 1 \right) \cdot 100 - \left( \frac{B_t}{B_{t-n}} - 1 \right) \cdot 100'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 250
+        minimum: 1
+        maximum: 100000
+        description: How many bars back the comparison point sits.
+    inputs: [close]
+    requires_benchmark: true
+    unit: percent
+    direction: higher
+    references:
+      - "Levy, R. A. (1967). Relative Strength as a Criterion for Investment Selection. Journal of Finance 22(4)."
+    implementation: factorbase.factors.relative:outperformance
+    status: stable
+
+  - id: beta
+    name: Beta
+    kind: indicator
+    family: relative
+    summary: Least-squares slope of the instrument's daily returns on the benchmark's.
+    description: >-
+      How much the instrument has moved for a one-point move in the market, on
+      average, over the window. Estimated on simple returns rather than log
+      returns: beta enters portfolio arithmetic through weighted sums of simple
+      returns, and estimating it on logs quietly changes what the number means.
+
+      It is a backward-looking regression coefficient and nothing more. Its
+      standard error is large on a year of daily data, which is why the shrunk
+      estimate below exists.
+    formulas:
+      - latex: 'r_t = \frac{C_t}{C_{t-1}} - 1, \qquad m_t = \frac{B_t}{B_{t-1}} - 1'
+      - latex: '\beta_t = \frac{\operatorname{Cov}(r, m)}{\operatorname{Var}(m)}'
+        note: Both moments taken over the last n bars.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 250
+        minimum: 2
+        maximum: 100000
+        description: Length of the estimation window.
+    inputs: [close]
+    requires_benchmark: true
+    unit: ratio
+    direction: undefined
+    references:
+      - "Sharpe, W. F. (1964). Capital Asset Prices. Journal of Finance 19(3)."
+    implementation: factorbase.factors.relative:beta
+    status: stable
+
+  - id: shrunk_beta
+    name: Shrunk Beta
+    kind: indicator
+    family: relative
+    summary: Beta from separate volatility and correlation windows, pulled towards one.
+    description: >-
+      Frazzini and Pedersen split beta into the ratio of volatilities and the
+      correlation, and estimate the two over different windows. Volatility is
+      measured over a year of daily returns; correlation over five years of
+      overlapping three-day returns, because daily correlations are depressed by
+      non-synchronous trading and that depression biases beta downward for
+      smaller instruments.
+
+      The estimate is then shrunk towards 1, the beta of a randomly chosen
+      stock. The weight of 0.6 is theirs and is not derived from the data; it is
+      a prior, and the entry calls it one.
+    formulas:
+      - latex: '\hat{\beta}_t = \hat{\rho}_t \cdot \frac{\hat{\sigma}_t}{\hat{\sigma}^{m}_t}'
+      - latex: '\beta^{shrunk}_t = w \hat{\beta}_t + (1 - w) \cdot 1'
+    parameters:
+      - id: volatility_periods
+        name: Volatility window
+        dtype: int
+        default: 250
+        minimum: 2
+        maximum: 100000
+        description: Bars of daily returns for the two volatilities.
+      - id: correlation_periods
+        name: Correlation window
+        dtype: int
+        default: 1250
+        minimum: 2
+        maximum: 100000
+        description: Bars of overlapping returns for the correlation.
+      - id: correlation_horizon
+        name: Correlation horizon
+        dtype: int
+        default: 3
+        minimum: 1
+        maximum: 100
+        description: How many days each overlapping return spans.
+      - id: weight
+        name: Shrinkage weight
+        dtype: float
+        default: 0.6
+        minimum: 0.0
+        maximum: 1.0
+        description: Weight on the estimate; the remainder goes to 1.
+    inputs: [close]
+    requires_benchmark: true
+    unit: ratio
+    direction: undefined
+    references:
+      - "Frazzini, A. and Pedersen, L. H. (2014). Betting Against Beta. Journal of Financial Economics 111(1)."
+    implementation: factorbase.factors.relative:shrunk_beta
+    notes: >-
+      Needs five years of history at the default correlation window. On shorter
+      series it is NaN throughout, which is the honest answer.
+    status: stable
+
+  - id: return_correlation
+    name: Return Correlation
+    kind: indicator
+    family: relative
+    summary: Rolling correlation of daily returns with the benchmark.
+    description: >-
+      How closely the instrument tracks the market, on a scale from -1 to 1,
+      independent of how far it moves. Correlation and beta answer different
+      questions: a high-volatility stock can have beta 2 and correlation 0.5,
+      and a low-volatility one beta 0.5 and correlation 0.9.
+    formulas:
+      - latex: '\rho_t = \frac{\operatorname{Cov}(r, m)}{\sigma_r \, \sigma_m}'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 250
+        minimum: 2
+        maximum: 100000
+        description: Length of the estimation window.
+    inputs: [close]
+    requires_benchmark: true
+    unit: ratio
+    direction: undefined
+    output_range: [-1, 1]
+    references:
+      - "Elton, E. J. et al. (2014). Modern Portfolio Theory and Investment Analysis, 9th ed., ch. 7."
+    implementation: factorbase.factors.relative:return_correlation
+    status: stable
+
+  - id: downside_correlation
+    name: Downside Correlation
+    kind: indicator
+    family: relative
+    summary: Correlation computed only on the bars where the benchmark fell.
+    description: >-
+      The correlation that decides whether a position actually diversifies is
+      the one that holds when the market falls, and it is routinely higher than
+      the all-weather number. An instrument advertised as uncorrelated at 0.2
+      overall can sit at 0.8 on down days, which is the reading that matters.
+
+      Windows containing fewer than `minimum_days` down bars return NaN. A
+      correlation from eight observations is not a weak estimate, it is noise
+      wearing the costume of an estimate.
+    formulas:
+      - latex: '\rho^{-}_t = \operatorname{Corr}\left( r_i, m_i \;\middle|\; m_i < 0,\; t-n < i \le t \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 250
+        minimum: 2
+        maximum: 100000
+        description: Length of the window the down bars are drawn from.
+      - id: minimum_days
+        name: Minimum down bars
+        dtype: int
+        default: 20
+        minimum: 2
+        maximum: 100000
+        description: Below this many down bars in the window, the result is undefined.
+    inputs: [close]
+    requires_benchmark: true
+    unit: ratio
+    direction: lower
+    output_range: [-1, 1]
+    references:
+      - "Ang, A., Chen, J. and Xing, Y. (2006). Downside Risk. Review of Financial Studies 19(4)."
+    implementation: factorbase.factors.relative:downside_correlation
+    status: stable
+
+  - id: downside_outperformance
+    name: Downside Outperformance
+    kind: indicator
+    family: relative
+    summary: Mean excess return on the bars where the benchmark fell.
+    description: >-
+      How the instrument behaves on the market's bad days, which is a different
+      question from how it behaves on average. Positive means it fell less than
+      the market, or rose while the market fell. Subject to the same minimum
+      count as the downside correlation and for the same reason.
+    formulas:
+      - latex: 'O^{-}_t = \operatorname{mean}\left( (r_i - m_i) \cdot 100 \;\middle|\; m_i < 0,\; t-n < i \le t \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 250
+        minimum: 2
+        maximum: 100000
+        description: Length of the window the down bars are drawn from.
+      - id: minimum_days
+        name: Minimum down bars
+        dtype: int
+        default: 20
+        minimum: 2
+        maximum: 100000
+        description: Below this many down bars in the window, the result is undefined.
+    inputs: [close]
+    requires_benchmark: true
+    unit: percent
+    direction: higher
+    references:
+      - "Ang, A., Chen, J. and Xing, Y. (2006). Downside Risk. Review of Financial Studies 19(4)."
+    implementation: factorbase.factors.relative:downside_outperformance
+    status: stable
+
+  - id: jensen_alpha
+    name: Jensen's Alpha
+    kind: indicator
+    family: relative
+    summary: Annualised intercept of the return regression against the benchmark.
+    description: >-
+      The part of the return the benchmark does not explain, annualised. Unlike
+      outperformance it adjusts for how much market exposure the instrument
+      carried: a stock with beta 2 in a market that rose 10 percent is expected
+      to rise 20, and only the remainder counts here.
+
+      The risk-free rate is a single annual constant rather than a series. With
+      a varying rate the intercept would also absorb its variation, which is a
+      different quantity from the one this entry names.
+    formulas:
+      - latex: 'r^{e}_t = r_t - r_f, \qquad m^{e}_t = m_t - r_f'
+      - latex: '\alpha_t = \overline{r^{e}} - \beta_t \, \overline{m^{e}}'
+      - latex: '\alpha^{ann}_t = \left( (1 + \alpha_t)^{T} - 1 \right) \cdot 100'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 250
+        minimum: 2
+        maximum: 100000
+        description: Length of the estimation window.
+      - id: trading_days
+        name: Trading days per year
+        dtype: int
+        default: 250
+        minimum: 1
+        maximum: 366
+        description: Annualisation factor.
+      - id: risk_free_rate
+        name: Risk-free rate
+        dtype: float
+        default: 0.0
+        minimum: -10.0
+        maximum: 100.0
+        description: Annual risk-free rate in percent, held constant across the window.
+    inputs: [close]
+    requires_benchmark: true
+    unit: percent
+    direction: higher
+    references:
+      - "Jensen, M. C. (1968). The Performance of Mutual Funds in the Period 1945-1964. Journal of Finance 23(2)."
+    implementation: factorbase.factors.relative:jensen_alpha
+    status: stable
