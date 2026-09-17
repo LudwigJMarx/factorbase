@@ -33,7 +33,7 @@ factors:
     aliases: [simple_moving_average]
     references:
       - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
-    implementation: factorbase.compute.moving_averages:sma
+    implementation: factorbase.factors.moving_averages:sma
     status: stable
 
   - id: ema
@@ -69,7 +69,7 @@ factors:
     aliases: [exponential_moving_average]
     references:
       - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
-    implementation: factorbase.compute.moving_averages:ema
+    implementation: factorbase.factors.moving_averages:ema
     status: stable
 
   - id: wma
@@ -100,7 +100,7 @@ factors:
     aliases: [weighted_moving_average]
     references:
       - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
-    implementation: factorbase.compute.moving_averages:wma
+    implementation: factorbase.factors.moving_averages:wma
     status: stable
 
   - id: price_to_ma_distance
@@ -136,7 +136,7 @@ factors:
     aliases: [ma_distance]
     references:
       - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
-    implementation: factorbase.compute.moving_averages:price_to_ma_distance
+    implementation: factorbase.factors.moving_averages:price_to_ma_distance
     status: stable
 
   - id: ma_to_ma_distance
@@ -177,7 +177,7 @@ factors:
     aliases: [ma_ma_distance]
     references:
       - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
-    implementation: factorbase.compute.moving_averages:ma_to_ma_distance
+    implementation: factorbase.factors.moving_averages:ma_to_ma_distance
     status: stable
 
   - id: ma_slope
@@ -217,7 +217,7 @@ factors:
     inputs: [close]
     unit: percent
     direction: higher
-    implementation: factorbase.compute.moving_averages:ma_slope
+    implementation: factorbase.factors.moving_averages:ma_slope
     references:
       - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
     status: stable
@@ -259,7 +259,7 @@ factors:
     inputs: [high, low, close]
     unit: ratio
     direction: higher
-    implementation: factorbase.compute.moving_averages:ma_slope_normalized
+    implementation: factorbase.factors.moving_averages:ma_slope_normalized
     references:
       - "Wilder, J. W. (1978). New Concepts in Technical Trading Systems, ch. 3."
     status: stable

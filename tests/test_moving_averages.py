@@ -13,8 +13,8 @@ import pandas as pd
 import pytest
 
 from factorbase import compute, default_catalog
-from factorbase.compute._common import moving_average
-from factorbase.compute.moving_averages import (
+from factorbase.factors._common import moving_average
+from factorbase.factors.moving_averages import (
     ema,
     ma_slope,
     ma_slope_normalized,
@@ -23,7 +23,7 @@ from factorbase.compute.moving_averages import (
     sma,
     wma,
 )
-from factorbase.compute.volatility import atr
+from factorbase.factors.volatility import atr
 from factorbase.errors import MissingInputError
 
 

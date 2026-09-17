@@ -22,10 +22,21 @@ Whether the implementation matches the formula. No checker can read LaTeX and
 compare it to code; that is what the tests in `tests/` are for. This script
 only confirms that a test exists and mentions the id, which is a weaker claim
 and is reported as such.
+
+── WHY CHECK 4 PARSES INSTEAD OF SEARCHING ─────────────────────────────────
+
+Its first version searched the concatenated test files for the id as plain
+text. It then reported `rsi` as covered, on the strength of the word
+"recursion" in a test name and the letters RSI in a module docstring. No test
+for the indicator existed. A checker that clears an entry on a substring match
+produces the same output as one that verified it, which is the failure this
+whole script exists to prevent, so it now reads the test files as Python and
+counts only identifiers and non-docstring string literals.
 """
 
 from __future__ import annotations
 
+import ast
 import inspect
 import sys
 from pathlib import Path
@@ -39,12 +50,51 @@ from factorbase.registry import parameter_mismatch, resolve  # noqa: E402
 from factorbase.schema import Kind, Status  # noqa: E402
 
 
-def test_corpus() -> str:
-    """Everything under tests/, concatenated, lowercased."""
+def _docstring_nodes(tree: ast.AST) -> set[int]:
+    """Object ids of the string constants that are docstrings.
+
+    Prose in a docstring is not a reference to a factor. Excluding it is what
+    stops "the right RSI for a particular Tuesday" from counting as a test.
+    """
+    found: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            body = getattr(node, "body", [])
+            if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
+                if isinstance(body[0].value.value, str):
+                    found.add(id(body[0].value))
+    return found
+
+
+def tested_names() -> set[str]:
+    """Every identifier and non-docstring string literal used under tests/.
+
+    Parsed rather than grepped. A substring search over the raw text reports an
+    entry as covered when its id happens to occur inside an unrelated word; see
+    the note at the top of this file for the run where that actually happened.
+    """
     tests = ROOT / "tests"
     if not tests.is_dir():
-        return ""
-    return "\n".join(p.read_text(encoding="utf-8") for p in tests.rglob("*.py")).lower()
+        return set()
+    names: set[str] = set()
+    for path in sorted(tests.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        docstrings = _docstring_nodes(tree)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Name):
+                names.add(node.id)
+            elif isinstance(node, ast.Attribute):
+                names.add(node.attr)
+            elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+                names.add(node.name)
+            elif isinstance(node, ast.arg):
+                names.add(node.arg)
+            elif isinstance(node, ast.alias):
+                names.add(node.asname or node.name.rpartition(".")[2])
+            elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+                if id(node) not in docstrings:
+                    names.add(node.value)
+    return names
 
 
 def main() -> int:
@@ -56,7 +106,7 @@ def main() -> int:
         print(f"catalogue does not load: {error}", file=sys.stderr)
         return 1
 
-    corpus = test_corpus()
+    covered = tested_names()
     ids = set(catalog.ids())
     checked_implementations = 0
     checked_parameters = 0
@@ -89,7 +139,7 @@ def main() -> int:
                 f"{factor.id}: {factor.implementation} does not accept {', '.join(missing)}"
             )
 
-        if factor.status is Status.STABLE and factor.id not in corpus:
+        if factor.status is Status.STABLE and factor.id not in covered:
             untested.append(factor.id)
 
     by_kind = {kind.value: len(catalog.of_kind(kind)) for kind in Kind}

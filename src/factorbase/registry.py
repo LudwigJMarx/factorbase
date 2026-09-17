@@ -19,7 +19,7 @@ from .schema import Factor
 
 
 def resolve(reference: str) -> Callable[..., Any]:
-    """Turn 'factorbase.compute.momentum:rsi' into the function itself."""
+    """Turn 'factorbase.factors.momentum:rsi' into the function itself."""
     if ":" not in reference:
         raise CatalogError(reference, "implementation must be written as 'module:function'")
     module_name, _, function_name = reference.partition(":")

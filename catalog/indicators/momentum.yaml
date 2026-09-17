@@ -1,0 +1,632 @@
+# Momentum: rate of change, oscillators, and the MACD family.
+
+factors:
+  - id: rsi
+    name: Relative Strength Index
+    kind: indicator
+    family: momentum
+    summary: Share of the recent move that was upward, mapped onto 0 to 100.
+    description: >-
+      Splits each bar-to-bar change into a gain or a loss, smooths the two
+      separately, and reports the gains as a proportion of total movement. A
+      reading of 70 says roughly seven of every ten points travelled in the
+      window were travelled upward. It says nothing about how far the price
+      went in total, which is why a quiet drift and a violent rally can both
+      read 70.
+
+      The smoothing is the whole argument. Wilder smoothed with a constant of
+      1/n; an ordinary exponential average of the same period length uses
+      2/(n+1) and reacts roughly twice as fast. An RSI(14) built on a 14-period
+      exponential average is not Wilder's RSI(14), it is closer to his RSI(27).
+      This entry defaults to Wilder and offers the other two as parameters
+      rather than pretending the choice does not exist.
+    formulas:
+      - latex: 'U_t = \max(C_t - C_{t-1},\, 0), \qquad D_t = \max(C_{t-1} - C_t,\, 0)'
+        note: Gain and loss of a single bar, both non-negative.
+      - latex: '\overline{U}_t = \frac{(n-1)\overline{U}_{t-1} + U_t}{n}, \qquad \overline{D}_t = \frac{(n-1)\overline{D}_{t-1} + D_t}{n}'
+        note: Wilder smoothing, seeded with the simple mean of the first n values.
+      - latex: 'RS_t = \frac{\overline{U}_t}{\overline{D}_t}'
+      - latex: 'RSI_t = 100 - \frac{100}{1 + RS_t}'
+        note: Equivalently 100 \cdot \overline{U} / (\overline{U} + \overline{D}), which is defined when the average loss is zero.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 14
+        minimum: 2
+        maximum: 100000
+        description: Length of the smoothing window.
+      - id: method
+        name: Smoothing
+        dtype: str
+        default: wilder
+        choices: [wilder, sma, ema]
+        description: Which average smooths the gains and losses.
+    inputs: [close]
+    unit: index
+    direction: undefined
+    output_range: [0, 100]
+    aliases: [relative_strength_index]
+    references:
+      - "Wilder, J. W. (1978). New Concepts in Technical Trading Systems, ch. 6."
+    implementation: factorbase.factors.momentum:rsi
+    status: stable
+
+  - id: rate_of_change
+    name: Rate of Change
+    kind: indicator
+    family: momentum
+    summary: Percentage change of the close over n bars.
+    description: >-
+      The plainest momentum measure there is: where the price stands now against
+      where it stood n bars ago. Because it is a ratio it compares directly
+      across instruments, which is what makes it the usual building block for
+      cross-sectional momentum ranking.
+    formulas:
+      - latex: 'ROC_t(n) = \left( \frac{C_t}{C_{t-n}} - 1 \right) \cdot 100'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 12
+        minimum: 1
+        maximum: 100000
+        description: How many bars back the comparison point sits.
+    inputs: [close]
+    unit: percent
+    direction: higher
+    aliases: [roc, price_rate_of_change]
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
+    implementation: factorbase.factors.momentum:rate_of_change
+    status: stable
+
+  - id: absolute_price_change
+    name: Absolute Price Change
+    kind: indicator
+    family: momentum
+    summary: Close minus the close n bars ago, in currency.
+    description: >-
+      The same comparison as rate of change, left in currency instead of turned
+      into a percentage. Not comparable across instruments, and included for the
+      cases where that is the point: position sizing and stop placement work in
+      currency, not in percent.
+    formulas:
+      - latex: '\Delta_t(n) = C_t - C_{t-n}'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 12
+        minimum: 1
+        maximum: 100000
+        description: How many bars back the comparison point sits.
+    inputs: [close]
+    unit: currency
+    direction: higher
+    implementation: factorbase.factors.momentum:absolute_price_change
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 14."
+    status: stable
+
+  - id: macd
+    name: MACD Line
+    kind: indicator
+    family: momentum
+    summary: Fast exponential average minus slow exponential average.
+    description: >-
+      The difference between two exponential averages of the same series. Above
+      zero the fast average leads, which is a compressed way of saying the
+      recent price level sits above the older one. Its unit is currency, so
+      readings are not comparable between a twenty-euro stock and a
+      two-thousand-euro one, a limitation that trips up every attempt to rank a
+      universe on raw MACD.
+    formulas:
+      - latex: 'MACD_t = EMA_t(n_{fast}) - EMA_t(n_{slow})'
+    parameters:
+      - id: fast_periods
+        name: Fast periods
+        dtype: int
+        default: 12
+        minimum: 1
+        maximum: 100000
+        description: Period length of the faster exponential average.
+      - id: slow_periods
+        name: Slow periods
+        dtype: int
+        default: 26
+        minimum: 1
+        maximum: 100000
+        description: Period length of the slower exponential average.
+    inputs: [close]
+    unit: currency
+    direction: undefined
+    references:
+      - "Appel, G. (2005). Technical Analysis: Power Tools for Active Investors, ch. 6."
+    implementation: factorbase.factors.momentum:macd
+    status: stable
+
+  - id: macd_signal
+    name: MACD Signal Line
+    kind: indicator
+    family: momentum
+    summary: Exponential average of the MACD line.
+    description: >-
+      A smoothed copy of the MACD line, used as the thing the line is compared
+      against. On its own it carries no information the MACD line does not; its
+      purpose is to define the crossover.
+    formulas:
+      - latex: 'Signal_t = EMA_t(MACD, n_{signal})'
+    parameters:
+      - id: fast_periods
+        name: Fast periods
+        dtype: int
+        default: 12
+        minimum: 1
+        maximum: 100000
+        description: Period length of the faster exponential average.
+      - id: slow_periods
+        name: Slow periods
+        dtype: int
+        default: 26
+        minimum: 1
+        maximum: 100000
+        description: Period length of the slower exponential average.
+      - id: signal_periods
+        name: Signal periods
+        dtype: int
+        default: 9
+        minimum: 1
+        maximum: 100000
+        description: Period length of the average applied to the MACD line.
+    inputs: [close]
+    unit: currency
+    direction: undefined
+    references:
+      - "Appel, G. (2005). Technical Analysis: Power Tools for Active Investors, ch. 6."
+    implementation: factorbase.factors.momentum:macd_signal
+    status: stable
+
+  - id: macd_histogram
+    name: MACD Histogram
+    kind: indicator
+    family: momentum
+    summary: MACD line minus its signal line.
+    description: >-
+      The gap between the line and its own average. It crosses zero exactly
+      where the two lines cross, and its height says how decisively. Reading the
+      histogram turning before it crosses is the common use, and the common
+      mistake: a turn in the histogram is a second derivative of price and is
+      correspondingly noisy.
+    formulas:
+      - latex: 'H_t = MACD_t - Signal_t'
+    parameters:
+      - id: fast_periods
+        name: Fast periods
+        dtype: int
+        default: 12
+        minimum: 1
+        maximum: 100000
+        description: Period length of the faster exponential average.
+      - id: slow_periods
+        name: Slow periods
+        dtype: int
+        default: 26
+        minimum: 1
+        maximum: 100000
+        description: Period length of the slower exponential average.
+      - id: signal_periods
+        name: Signal periods
+        dtype: int
+        default: 9
+        minimum: 1
+        maximum: 100000
+        description: Period length of the average applied to the MACD line.
+    inputs: [close]
+    unit: currency
+    direction: undefined
+    references:
+      - "Appel, G. (2005). Technical Analysis: Power Tools for Active Investors, ch. 6."
+    implementation: factorbase.factors.momentum:macd_histogram
+    status: stable
+
+  - id: macd_histogram_change
+    name: MACD Histogram Change
+    kind: indicator
+    family: momentum
+    summary: Change in the MACD histogram over the last m bars, in currency.
+    description: >-
+      Whether the gap between line and signal is widening or closing, stated as
+      a difference rather than a direction. Left in currency deliberately: as a
+      percentage it would divide by a quantity that crosses zero, which produces
+      arbitrarily large readings exactly where the histogram is least
+      informative.
+    formulas:
+      - latex: '\Delta H_t(m) = H_t - H_{t-m}'
+    parameters:
+      - id: fast_periods
+        name: Fast periods
+        dtype: int
+        default: 12
+        minimum: 1
+        maximum: 100000
+        description: Period length of the faster exponential average.
+      - id: slow_periods
+        name: Slow periods
+        dtype: int
+        default: 26
+        minimum: 1
+        maximum: 100000
+        description: Period length of the slower exponential average.
+      - id: signal_periods
+        name: Signal periods
+        dtype: int
+        default: 9
+        minimum: 1
+        maximum: 100000
+        description: Period length of the average applied to the MACD line.
+      - id: lookback
+        name: Lookback
+        dtype: int
+        default: 1
+        minimum: 1
+        maximum: 100000
+        description: How many bars back the comparison point sits.
+    inputs: [close]
+    unit: currency
+    direction: higher
+    implementation: factorbase.factors.momentum:macd_histogram_change
+    references:
+      - "Appel, G. (2005). Technical Analysis: Power Tools for Active Investors, ch. 6."
+    status: stable
+
+  - id: macd_momentum
+    name: MACD Momentum
+    kind: indicator
+    family: momentum
+    summary: Change in the MACD line itself over the last m bars.
+    description: >-
+      The MACD line's own rate of change, not the histogram's. The two are often
+      confused: the histogram measures the line against its average, this
+      measures the line against its own past. A line far below zero but rising
+      steeply has negative MACD and positive MACD momentum, and that combination
+      is the case the distinction exists for.
+    formulas:
+      - latex: '\Delta MACD_t(m) = MACD_t - MACD_{t-m}'
+    parameters:
+      - id: fast_periods
+        name: Fast periods
+        dtype: int
+        default: 12
+        minimum: 1
+        maximum: 100000
+        description: Period length of the faster exponential average.
+      - id: slow_periods
+        name: Slow periods
+        dtype: int
+        default: 26
+        minimum: 1
+        maximum: 100000
+        description: Period length of the slower exponential average.
+      - id: lookback
+        name: Lookback
+        dtype: int
+        default: 1
+        minimum: 1
+        maximum: 100000
+        description: How many bars back the comparison point sits.
+    inputs: [close]
+    unit: currency
+    direction: higher
+    implementation: factorbase.factors.momentum:macd_momentum
+    references:
+      - "Appel, G. (2005). Technical Analysis: Power Tools for Active Investors, ch. 6."
+    status: stable
+
+  - id: cci
+    name: Commodity Channel Index
+    kind: indicator
+    family: momentum
+    summary: Distance of the typical price from its average, in units of mean deviation.
+    description: >-
+      Measures how unusual the current price is against its own recent
+      behaviour, scaled by how much that behaviour normally varies. The constant
+      0.015 is not derived from anything; Lambert chose it so that roughly three
+      readings in four land between -100 and +100. Mean absolute deviation is
+      used rather than standard deviation, which is what separates this from a
+      plain z-score and makes it less sensitive to one outlier bar.
+    formulas:
+      - latex: 'TP_t = \frac{H_t + L_t + C_t}{3}'
+        note: The typical price.
+      - latex: 'MD_t = \frac{1}{n} \sum_{i=0}^{n-1} \left| TP_{t-i} - SMA_t(TP, n) \right|'
+        note: Mean absolute deviation around the current average, not around each bar own average.
+      - latex: 'CCI_t = \frac{TP_t - SMA_t(TP, n)}{0.015 \cdot MD_t}'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 2
+        maximum: 100000
+        description: Window for both the average and the mean deviation.
+    inputs: [high, low, close]
+    unit: index
+    direction: undefined
+    aliases: [commodity_channel_index]
+    references:
+      - "Lambert, D. R. (1980). Commodity Channel Index. Commodities Magazine, October."
+    implementation: factorbase.factors.momentum:cci
+    status: stable
+
+  - id: williams_percent_r
+    name: Williams %R
+    kind: indicator
+    family: momentum
+    summary: Where the close sits in the n-bar range, from 0 at the high to -100 at the low.
+    description: >-
+      The same quantity as the fast stochastic, on an inverted scale running
+      from 0 down to -100. Reading it as an overbought gauge is the usual
+      treatment and the usual error: in a strong trend it pins near its extreme
+      for weeks, because pinning near the extreme is what a strong trend is.
+    formulas:
+      - latex: '\%R_t = \frac{HH_t(n) - C_t}{HH_t(n) - LL_t(n)} \cdot (-100)'
+        note: HH and LL are the highest high and lowest low over the last n bars.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 14
+        minimum: 1
+        maximum: 100000
+        description: Length of the range window.
+    inputs: [high, low, close]
+    unit: index
+    direction: undefined
+    output_range: [-100, 0]
+    aliases: [williams_r]
+    references:
+      - "Williams, L. (1979). How I Made One Million Dollars Last Year Trading Commodities."
+    implementation: factorbase.factors.momentum:williams_percent_r
+    status: stable
+
+  - id: stochastic_fast_k
+    name: Fast Stochastic %K
+    kind: indicator
+    family: momentum
+    summary: Position of the close within the n-bar range, 0 to 100.
+    description: >-
+      Lane's original question: is the close finishing near the top or the
+      bottom of the range it has been trading in. Unsmoothed, so it is jumpy;
+      the smoothed variants below exist because the raw line is difficult to
+      use directly.
+    formulas:
+      - latex: '\%K_t = \frac{C_t - LL_t(n)}{HH_t(n) - LL_t(n)} \cdot 100'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 14
+        minimum: 1
+        maximum: 100000
+        description: Length of the range window.
+    inputs: [high, low, close]
+    unit: index
+    direction: undefined
+    output_range: [0, 100]
+    references:
+      - "Lane, G. C. (1984). Lane on Stochastics. Technical Analysis of Stocks and Commodities 2(3)."
+    implementation: factorbase.factors.momentum:stochastic_fast_k
+    status: stable
+
+  - id: stochastic_fast_d
+    name: Fast Stochastic %D
+    kind: indicator
+    family: momentum
+    summary: Short moving average of fast %K.
+    description: >-
+      Three-bar average of the raw line. It is also, by definition, the slow
+      %K: the naming is historical and confuses everyone once. What one package
+      calls fast %D another calls slow %K, and they are the same series.
+    formulas:
+      - latex: '\%D_t = SMA_t(\%K, d)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 14
+        minimum: 1
+        maximum: 100000
+        description: Length of the range window.
+      - id: smoothing
+        name: Smoothing
+        dtype: int
+        default: 3
+        minimum: 1
+        maximum: 100000
+        description: Length of the average applied to %K.
+    inputs: [high, low, close]
+    unit: index
+    direction: undefined
+    output_range: [0, 100]
+    references:
+      - "Lane, G. C. (1984). Lane on Stochastics. Technical Analysis of Stocks and Commodities 2(3)."
+    implementation: factorbase.factors.momentum:stochastic_fast_d
+    status: stable
+
+  - id: stochastic_slow_k
+    name: Slow Stochastic %K
+    kind: indicator
+    family: momentum
+    summary: Fast %K smoothed once. Identical to fast %D.
+    description: >-
+      Listed separately because screeners ask for it by this name, and because
+      leaving it out would make the pair slow %K and slow %D look like they had
+      different ancestry. They do not: slow %K is fast %D, and slow %D is that
+      smoothed again.
+    formulas:
+      - latex: '\%K^{slow}_t = SMA_t(\%K, d_1)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 14
+        minimum: 1
+        maximum: 100000
+        description: Length of the range window.
+      - id: smoothing
+        name: Smoothing
+        dtype: int
+        default: 3
+        minimum: 1
+        maximum: 100000
+        description: Length of the first average.
+    inputs: [high, low, close]
+    unit: index
+    direction: undefined
+    output_range: [0, 100]
+    references:
+      - "Lane, G. C. (1984). Lane on Stochastics. Technical Analysis of Stocks and Commodities 2(3)."
+    implementation: factorbase.factors.momentum:stochastic_slow_k
+    status: stable
+
+  - id: stochastic_slow_d
+    name: Slow Stochastic %D
+    kind: indicator
+    family: momentum
+    summary: Fast %K smoothed twice.
+    description: >-
+      The line most charting packages draw as the dotted one. Two passes of a
+      three-bar average over the raw stochastic, which is enough smoothing that
+      its crossings lag visibly, and few enough that it still moves.
+    formulas:
+      - latex: '\%D^{slow}_t = SMA_t\!\left( SMA(\%K, d_1),\, d_2 \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 14
+        minimum: 1
+        maximum: 100000
+        description: Length of the range window.
+      - id: smoothing
+        name: First smoothing
+        dtype: int
+        default: 3
+        minimum: 1
+        maximum: 100000
+        description: Length of the first average.
+      - id: second_smoothing
+        name: Second smoothing
+        dtype: int
+        default: 3
+        minimum: 1
+        maximum: 100000
+        description: Length of the second average.
+    inputs: [high, low, close]
+    unit: index
+    direction: undefined
+    output_range: [0, 100]
+    references:
+      - "Lane, G. C. (1984). Lane on Stochastics. Technical Analysis of Stocks and Commodities 2(3)."
+    implementation: factorbase.factors.momentum:stochastic_slow_d
+    status: stable
+
+  - id: double_smoothed_stochastic_blau
+    name: Double Smoothed Stochastic (Blau)
+    kind: indicator
+    family: momentum
+    summary: Stochastic whose numerator and denominator are each smoothed twice before dividing.
+    description: >-
+      Blau's construction smooths the two halves of the stochastic ratio
+      separately and divides only at the end. The ordinary approach divides
+      first and smooths the quotient, which lets a single narrow-range bar,
+      where the denominator is near zero, dominate the smoothed result. Dividing
+      last removes that failure mode, and is the reason this variant is
+      noticeably steadier than a doubly smoothed plain stochastic.
+    formulas:
+      - latex: 'N_t = EMA_t\!\left( EMA(C - LL(n),\, r),\, s \right)'
+      - latex: 'D_t = EMA_t\!\left( EMA(HH(n) - LL(n),\, r),\, s \right)'
+      - latex: 'DSS_t = 100 \cdot \frac{N_t}{D_t}'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 10
+        minimum: 1
+        maximum: 100000
+        description: Length of the range window.
+      - id: first_smoothing
+        name: First smoothing
+        dtype: int
+        default: 3
+        minimum: 1
+        maximum: 100000
+        description: Period of the inner exponential average.
+      - id: second_smoothing
+        name: Second smoothing
+        dtype: int
+        default: 3
+        minimum: 1
+        maximum: 100000
+        description: Period of the outer exponential average.
+    inputs: [high, low, close]
+    unit: index
+    direction: undefined
+    output_range: [0, 100]
+    references:
+      - "Blau, W. (1995). Momentum, Direction and Divergence, ch. 4."
+    implementation: factorbase.factors.momentum:double_smoothed_stochastic_blau
+    notes: >-
+      The defaults here are this package's, not a quoted standard. Published
+      charts of this indicator use several different triples and rarely say
+      which.
+    status: stable
+
+  - id: double_smoothed_stochastic_bressert
+    name: Double Smoothed Stochastic (Bressert)
+    kind: indicator
+    family: momentum
+    summary: Stochastic of a smoothed stochastic, smoothed again.
+    description: >-
+      A different route to the same goal as Blau's. Bressert takes the ordinary
+      stochastic, smooths it, then takes the stochastic of that smoothed line
+      and smooths once more. Because the second stochastic rescales to the full
+      0 to 100 range, the result reaches its extremes more readily than Blau's
+      version does, which is the practical difference between the two.
+    formulas:
+      - latex: '\%K_t = \frac{C_t - LL_t(n)}{HH_t(n) - LL_t(n)} \cdot 100'
+      - latex: 'S_t = EMA_t(\%K, r)'
+      - latex: '\%K^{(2)}_t = \frac{S_t - LL_t(S, n)}{HH_t(S, n) - LL_t(S, n)} \cdot 100'
+      - latex: 'DSS_t = EMA_t\!\left( \%K^{(2)}, s \right)'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 10
+        minimum: 1
+        maximum: 100000
+        description: Length of both range windows.
+      - id: first_smoothing
+        name: First smoothing
+        dtype: int
+        default: 3
+        minimum: 1
+        maximum: 100000
+        description: Period of the average applied to the first stochastic.
+      - id: second_smoothing
+        name: Second smoothing
+        dtype: int
+        default: 3
+        minimum: 1
+        maximum: 100000
+        description: Period of the average applied to the second stochastic.
+    inputs: [high, low, close]
+    unit: index
+    direction: undefined
+    output_range: [0, 100]
+    references:
+      - "Bressert, W. (1991). The Power of Oscillator/Cycle Combinations."
+    implementation: factorbase.factors.momentum:double_smoothed_stochastic_bressert
+    notes: >-
+      The defaults here are this package's, not a quoted standard.
+    status: stable
