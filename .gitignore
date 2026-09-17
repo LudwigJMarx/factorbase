@@ -10,5 +10,10 @@ _local/
 .env.*
 !.env.example
 
+# Tool caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
 # Build artefacts of the catalogue
 *.sqlite3
