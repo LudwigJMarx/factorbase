@@ -18,14 +18,31 @@ from ._common import require_columns, simple_moving_average
 def _aligned_benchmark(prices: pd.DataFrame, benchmark: pd.Series, factor_id: str) -> pd.Series:
     """Benchmark closes on the price frame's own dates.
 
-    Missing benchmark dates are carried forward, which is right for a holiday
-    on one exchange and not the other. What is not tolerated is no overlap at
-    all: that is a wiring mistake, and a column of NaN looks like a quiet
-    instrument rather than a wrong argument.
+    The value for a date is the last benchmark print at or before it, which is
+    right for a holiday on one exchange and not the other. What is not
+    tolerated is no overlap at all: that is a wiring mistake, and a column of
+    NaN looks like a quiet instrument rather than a wrong argument.
+
+    Same join as `fundamentals.valuation.as_of`, and deliberately so: two
+    modules answering the same question must not answer it differently.
     """
-    aligned = benchmark.reindex(prices.index).ffill()
-    overlap = int(aligned.notna().sum())
-    if overlap == 0:
+    # Union first, then fill, then narrow. Reindexing onto the price dates
+    # before the fill silently discards every benchmark bar that falls on a day
+    # the instrument did not trade, and the fill then carries a staler value
+    # forward. With a German stock against a US index the calendars differ most
+    # weeks, so this is the ordinary case rather than an edge one.
+    # The periods have to overlap, and counting non-missing values after the
+    # fill does not check that. A benchmark whose last print is thirty years
+    # before the prices begin fills every row with one stale constant and looks
+    # like full coverage. Compare the ranges instead.
+    usable = benchmark.dropna()
+    if usable.empty or usable.index.max() < prices.index.min():
+        raise InsufficientHistoryError(factor_id, 1, 0)
+    if usable.index.min() > prices.index.max():
+        raise InsufficientHistoryError(factor_id, 1, 0)
+
+    aligned = usable.reindex(usable.index.union(prices.index)).ffill().reindex(prices.index)
+    if int(aligned.notna().sum()) == 0:
         raise InsufficientHistoryError(factor_id, 1, 0)
     return aligned
 

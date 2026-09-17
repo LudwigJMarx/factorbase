@@ -19,8 +19,17 @@ def directional_movement(prices: pd.DataFrame) -> pd.DataFrame:
     require_columns(prices, ("high", "low"), "directional_movement")
     up_move = prices["high"].diff()
     down_move = -prices["low"].diff()
-    plus = up_move.where((up_move > down_move) & (up_move > 0.0), 0.0)
-    minus = down_move.where((down_move > up_move) & (down_move > 0.0), 0.0)
+    # The `.where(..., 0.0)` below turns every unsatisfied condition into a
+    # zero, and a NaN never satisfies a comparison. The first bar, which has no
+    # predecessor, would therefore report a movement of zero rather than none.
+    # That zero is an observation: it is averaged into Wilder's seed, and the
+    # smoothed range it is divided by is seeded correctly, so the two halves of
+    # every directional indicator start out misaligned. The second `.where`
+    # puts the missing value back.
+    rose = (up_move > down_move) & (up_move > 0.0)
+    fell = (down_move > up_move) & (down_move > 0.0)
+    plus = up_move.where(rose, 0.0).where(up_move.notna())
+    minus = down_move.where(fell, 0.0).where(down_move.notna())
     return pd.DataFrame({"plus_dm": plus, "minus_dm": minus}, index=prices.index)
 
 
@@ -60,13 +69,27 @@ def adx(prices: pd.DataFrame, periods: int = 14) -> pd.Series:
     return wilder_smoothing(dx.dropna(), periods).reindex(prices.index)
 
 
+def _bars_since_last(window: np.ndarray, want_max: bool) -> float:
+    """Position of the LAST occurrence of the extreme inside the window.
+
+    np.argmax and np.argmin return the first occurrence. Aroon asks how long
+    ago the extreme happened, so with two equal highs the answer is the later
+    one. Taking the first turns a high that is one bar old into a high that is
+    six bars old, and a bar that merely matches the window high - which is what
+    a price does at a round-number resistance - reads low instead of 100.
+    """
+    reversed_window = window[::-1]
+    offset = int(np.argmax(reversed_window) if want_max else np.argmin(reversed_window))
+    return float(len(window) - 1 - offset)
+
+
 def aroon_up(prices: pd.DataFrame, periods: int = 25) -> pd.Series:
     """Aroon Up. Catalogue id `aroon_up`."""
     require_columns(prices, ("high",), "aroon_up")
     position = (
         prices["high"]
         .rolling(window=periods, min_periods=periods)
-        .apply(lambda window: float(np.argmax(window)), raw=True)
+        .apply(lambda window: _bars_since_last(window, want_max=True), raw=True)
     )
     return position / (periods - 1) * 100.0
 
@@ -77,7 +100,7 @@ def aroon_down(prices: pd.DataFrame, periods: int = 25) -> pd.Series:
     position = (
         prices["low"]
         .rolling(window=periods, min_periods=periods)
-        .apply(lambda window: float(np.argmin(window)), raw=True)
+        .apply(lambda window: _bars_since_last(window, want_max=False), raw=True)
     )
     return position / (periods - 1) * 100.0
 

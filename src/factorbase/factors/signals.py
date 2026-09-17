@@ -263,7 +263,11 @@ def pivot_breakout(prices: pd.DataFrame, left: int = 5, right: int = 5) -> pd.Se
     """
     require_columns(prices, ("high", "close"), "pivot_breakout")
     confirmed = pivot_high(prices, left, right).shift(right).fillna(False)
-    level = prices["high"].where(confirmed).ffill()
+    # Both the flag and the high are shifted. The flag says "a pivot was
+    # confirmed `right` bars ago"; the level has to be that pivot's own high,
+    # not the high of the bar on which it became knowable. Shifting only the
+    # flag produces a breakout over a price the pivot never reached.
+    level = prices["high"].shift(right).where(confirmed).ffill()
     crossed = (prices["close"] > level) & (prices["close"].shift(1) <= level.shift(1))
     return crossed.fillna(False).astype("bool")
 

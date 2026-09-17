@@ -29,7 +29,8 @@ from factorbase.factors.volatility import true_range
 def test_only_one_direction_registers_per_bar() -> None:
     frame = pd.DataFrame({"high": [10.0, 12.0, 11.0], "low": [9.0, 10.0, 7.0]})
     movement = directional_movement(frame)
-    assert (movement["plus_dm"] * movement["minus_dm"] == 0.0).all()
+    # From bar 1 on. Bar 0 has no predecessor and reports nothing at all.
+    assert (movement["plus_dm"].iloc[1:] * movement["minus_dm"].iloc[1:] == 0.0).all()
     assert movement["plus_dm"].iloc[1] == pytest.approx(2.0)
     assert movement["minus_dm"].iloc[2] == pytest.approx(3.0)
 
@@ -240,3 +241,97 @@ def test_template_condition_three_reads_the_average_not_the_price() -> None:
     conditions = trend_template_conditions(frame)
     ma200 = simple_moving_average(frame["close"], 200)
     assert conditions["ma200_rising"].iloc[-1] == bool(ma200.iloc[-1] > ma200.iloc[-23])
+
+
+# ── Where the directional movement starts ───────────────────────────────────
+
+
+def test_the_first_bar_has_no_directional_movement() -> None:
+    """There is no previous bar to move away from, so the answer is missing,
+    not zero. A zero is an observation and gets averaged into Wilder's seed;
+    a missing value is skipped, which is what should happen."""
+    frame = pd.DataFrame({"high": [10.0, 12.0, 11.0], "low": [9.0, 10.0, 7.0]})
+    movement = directional_movement(frame)
+    assert np.isnan(movement["plus_dm"].iloc[0])
+    assert np.isnan(movement["minus_dm"].iloc[0])
+
+
+def _wilder_di_reference(frame: pd.DataFrame, periods: int = 14) -> np.ndarray:
+    """+DI written out from Wilder's definition, without this package's helpers.
+
+    The directional-movement half is deliberately independent: a test that
+    recomputes with the same smoothing helper the implementation uses cannot
+    detect a wrong seed, because both halves would be wrong together.
+
+    The true-range half follows the convention the catalogue states rather than
+    a second opinion about it. The first bar has no previous close and uses the
+    plain high-low range, so that the average is seeded from n bars instead of
+    n-1. Letting it be NaN here would make this reference disagree with the
+    entry rather than with the code, which is a different test and not the one
+    that was wanted.
+    """
+    high, low, close = frame["high"], frame["low"], frame["close"]
+    up, down = high.diff(), -low.diff()
+    plus = np.where((up > down) & (up > 0.0), up, 0.0)
+    plus[0] = np.nan
+    previous = close.shift(1)
+    span = high - low
+    ranges = np.maximum(
+        span,
+        np.maximum((high - previous).abs().fillna(span), (low - previous).abs().fillna(span)),
+    ).to_numpy()
+
+    def smooth(values: np.ndarray, first: int, seed_at: int) -> np.ndarray:
+        out = np.full(len(values), np.nan)
+        out[seed_at] = np.nanmean(values[first : seed_at + 1])
+        for i in range(seed_at + 1, len(values)):
+            out[i] = ((periods - 1) * out[i - 1] + values[i]) / periods
+        return out
+
+    return 100.0 * smooth(plus, 1, periods) / smooth(ranges, 0, periods - 1)
+
+
+def test_plus_di_matches_an_independently_written_wilder(wobble: pd.DataFrame) -> None:
+    expected = _wilder_di_reference(wobble, 14)
+    result = plus_di(wobble, 14).to_numpy()
+    defined = ~np.isnan(expected)
+    assert defined.sum() > 300
+    assert np.allclose(result[defined], expected[defined])
+
+
+def test_plus_di_starts_where_the_fourteenth_movement_is(wobble: pd.DataFrame) -> None:
+    """The first directional movement is on bar 1, so the fourteenth is on bar 14."""
+    assert plus_di(wobble, 14).first_valid_index() == wobble.index[14]
+
+
+def test_adx_matches_the_reference_too(wobble: pd.DataFrame) -> None:
+    """ADX is built on the directional indicators, so it inherits their seed."""
+    reference_di = _wilder_di_reference(wobble, 14)
+    assert not np.isnan(reference_di[14])
+    assert adx(wobble, 14).first_valid_index() > plus_di(wobble, 14).first_valid_index()
+
+
+# ── Aroon on tied extremes ──────────────────────────────────────────────────
+
+
+def test_aroon_up_counts_from_the_most_recent_tied_high() -> None:
+    """The measure is how long ago the high was. With two equal highs the
+    answer is the later one: the high is one bar old, not six."""
+    highs = [1.0, 2.0, 3.0, 9.0, 5.0, 6.0, 7.0, 8.0, 9.0, 4.0]
+    frame = pd.DataFrame({"high": highs, "low": [0.0] * 10})
+    assert aroon_up(frame, periods=10).iloc[-1] == pytest.approx(8.0 / 9.0 * 100.0)
+
+
+def test_aroon_up_is_one_hundred_when_today_merely_matches_the_high() -> None:
+    """A close at a round-number resistance matches rather than exceeds the
+    window high. The entry says the reading is 100 when today is the highest
+    high, and matching is being the highest high."""
+    highs = [5.0, 9.0, 6.0, 7.0, 8.0, 9.0]
+    frame = pd.DataFrame({"high": highs, "low": [0.0] * 6})
+    assert aroon_up(frame, periods=6).iloc[-1] == pytest.approx(100.0)
+
+
+def test_aroon_down_counts_from_the_most_recent_tied_low() -> None:
+    lows = [9.0, 8.0, 1.0, 5.0, 4.0, 3.0, 2.0, 6.0, 1.0, 7.0]
+    frame = pd.DataFrame({"high": [10.0] * 10, "low": lows})
+    assert aroon_down(frame, periods=10).iloc[-1] == pytest.approx(8.0 / 9.0 * 100.0)

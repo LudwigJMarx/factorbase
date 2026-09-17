@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from factorbase import compute
 from factorbase.factors.signals import (
@@ -342,3 +343,26 @@ def test_every_signal_entry_returns_booleans(wobble: pd.DataFrame) -> None:
         result = compute(factor.id, wobble)
         assert result.dtype == bool, factor.id
         assert len(result) == len(wobble), factor.id
+
+
+def test_pivot_breakout_breaks_the_pivot_high_not_the_confirming_bar() -> None:
+    """The level is the pivot's own high. Reading the confirming bar's high
+    instead produces a breakout over a price the pivot never reached.
+
+    The pivot high here is 110.5 at index 5. The price then sits at 104 for
+    eight bars and finishes at 106, which is above everything since the pivot
+    and still well below the pivot itself. Nothing may fire.
+    """
+    closes = [100.0, 101.0, 102.0, 103.0, 104.0, 110.0] + [104.0] * 8 + [106.0]
+    frame = series_frame(closes)
+    assert bool(pivot_high(frame, left=5, right=5).iloc[5])
+    assert frame["high"].iloc[5] == pytest.approx(110.5)
+    assert pivot_breakout(frame, left=5, right=5).sum() == 0
+
+
+def test_pivot_breakout_fires_once_the_pivot_high_is_actually_cleared() -> None:
+    closes = [100.0, 101.0, 102.0, 103.0, 104.0, 110.0] + [104.0] * 8 + [112.0]
+    frame = series_frame(closes)
+    fired = pivot_breakout(frame, left=5, right=5)
+    assert fired.sum() == 1
+    assert bool(fired.iloc[-1])

@@ -18,6 +18,7 @@ the only property that keeps one source of truth.
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -133,7 +134,12 @@ def build(destination: Path, catalog: Catalog | None = None) -> dict[str, int]:
         "input_field": 0,
     }
 
-    with sqlite3.connect(destination) as connection:
+    # `with sqlite3.connect(...)` commits the transaction and leaves the
+    # connection open. CPython's reference counting closes it on the way out,
+    # which is why nothing here ever noticed, but relying on that makes the
+    # next build's unlink() fail on Windows and on any implementation without
+    # prompt refcounting. closing() removes the dependency.
+    with closing(sqlite3.connect(destination)) as connection, connection:
         connection.executescript(SCHEMA)
         for factor in catalog:
             low, high = factor.output_range

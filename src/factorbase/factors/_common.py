@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Final
 
+import numpy as np
 import pandas as pd
 
 from ..errors import InsufficientHistoryError, MissingInputError
@@ -33,6 +34,21 @@ def require_history(frame: pd.DataFrame, needed: int, factor_id: str) -> None:
         raise InsufficientHistoryError(factor_id, needed, len(frame))
 
 
+def _seed_position(series: pd.Series, periods: int) -> int | None:
+    """Index position of the `periods`-th observation that is not missing.
+
+    Seeding at a fixed offset of `periods - 1` is right only for a series whose
+    first entry is real. RSI smooths gains and losses derived from a diff, so
+    its first entry is missing, and the fixed offset then averaged n-1 values
+    and placed the result a bar early - a 13-period reading labelled RSI(14).
+    Returns None when the series never reaches `periods` real observations.
+    """
+    present = series.notna().to_numpy()
+    reached = present.cumsum()
+    positions = np.flatnonzero(present & (reached == periods))
+    return int(positions[0]) if positions.size else None
+
+
 def simple_moving_average(series: pd.Series, periods: int) -> pd.Series:
     return series.rolling(window=periods, min_periods=periods).mean()
 
@@ -48,11 +64,13 @@ def exponential_moving_average(series: pd.Series, periods: int) -> pd.Series:
     """
     if periods < 1:
         raise ValueError("periods must be at least 1")
-    seeded = series.copy()
-    seeded.iloc[: periods - 1] = pd.NA
-    if len(series) >= periods:
-        seeded.iloc[periods - 1] = series.iloc[:periods].mean()
-    return seeded.astype("float64").ewm(span=periods, adjust=False, ignore_na=False).mean()
+    seeded = series.copy().astype("float64")
+    start = _seed_position(series, periods)
+    if start is None:
+        return pd.Series(np.nan, index=series.index, dtype="float64")
+    seeded.iloc[:start] = np.nan
+    seeded.iloc[start] = series.iloc[: start + 1].mean()
+    return seeded.ewm(span=periods, adjust=False, ignore_na=False).mean()
 
 
 def weighted_moving_average(series: pd.Series, periods: int) -> pd.Series:
@@ -79,14 +97,22 @@ def moving_average(series: pd.Series, periods: int, method: str) -> pd.Series:
 def wilder_smoothing(series: pd.Series, periods: int) -> pd.Series:
     """Wilder's own smoothing, which is an EMA with alpha = 1/n.
 
+    The seed is the mean of the first n observations that exist, placed at the
+    position of the nth of them, so a series that begins with a missing value
+    is not silently seeded from n-1 values a bar early.
+
     Wilder wrote his indicators before the exponential average had a standard
     name, and the constant he used is 1/n rather than 2/(n+1). An RSI(14)
     computed with a 14-period EMA is therefore not Wilder's RSI(14); it is
     roughly his RSI(27). Every indicator of his in this package uses this
     function, and says so.
     """
+    if periods < 1:
+        raise ValueError("periods must be at least 1")
     seeded = series.copy().astype("float64")
-    seeded.iloc[: periods - 1] = float("nan")
-    if len(series) >= periods:
-        seeded.iloc[periods - 1] = series.iloc[:periods].mean()
+    start = _seed_position(series, periods)
+    if start is None:
+        return pd.Series(np.nan, index=series.index, dtype="float64")
+    seeded.iloc[:start] = np.nan
+    seeded.iloc[start] = series.iloc[: start + 1].mean()
     return seeded.ewm(alpha=1.0 / periods, adjust=False, ignore_na=False).mean()

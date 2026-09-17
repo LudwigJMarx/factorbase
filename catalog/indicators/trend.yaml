@@ -14,7 +14,12 @@ factors:
     formulas:
       - latex: '+DM_t = \begin{cases} H_t - H_{t-1} & \text{if } H_t - H_{t-1} > L_{t-1} - L_t \text{ and } H_t > H_{t-1} \\ 0 & \text{otherwise} \end{cases}'
       - latex: '+DI_t = 100 \cdot \frac{\overline{+DM}_t}{\overline{TR}_t}'
-        note: Both averages are Wilder smoothings over n bars.
+        note: >-
+          Both averages are Wilder smoothings over n bars. The first bar has no
+          predecessor and so contributes no directional movement at all, which
+          is not the same as contributing zero: a zero would be averaged into
+          the seed while the true range it is divided by is seeded from a full
+          n bars, and the two halves would start out misaligned.
     parameters:
       - id: periods
         name: Periods
@@ -107,7 +112,9 @@ factors:
       sensitive to whether it is still going on.
     formulas:
       - latex: 'AroonUp_t = \frac{n - 1 - b_t}{n - 1} \cdot 100'
-        note: b is the number of bars since the highest high inside the window of n bars.
+        note: >-
+          b is the number of bars since the highest high inside the window of n
+          bars, counted from the most recent bar that attains it.
     parameters:
       - id: periods
         name: Periods
@@ -127,6 +134,13 @@ factors:
       Measured over a window of n bars, so a fresh high reads 100 and the oldest
       bar in the window reads 0. Implementations that use n+1 bars produce
       slightly different intermediate values.
+
+      Where several bars share the highest high, the most recent of them
+      counts. The measure asks how long ago the high happened, and with two
+      equal highs that is the later one. Taking the first, which is what argmax
+      returns, reports a high that is one bar old as six bars old, and makes a
+      bar that merely matches the window high read low instead of 100 - the
+      ordinary situation at a round-number resistance.
     status: stable
 
   - id: aroon_down
@@ -139,7 +153,9 @@ factors:
       bearish condition, so the direction field says lower is better.
     formulas:
       - latex: 'AroonDown_t = \frac{n - 1 - b_t}{n - 1} \cdot 100'
-        note: b is the number of bars since the lowest low inside the window.
+        note: >-
+          b is the number of bars since the lowest low inside the window, counted
+          from the most recent bar that attains it.
     parameters:
       - id: periods
         name: Periods

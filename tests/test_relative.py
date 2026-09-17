@@ -145,3 +145,69 @@ def test_jensen_alpha_of_a_pure_geared_copy_is_zero(
 def test_jensen_alpha_differs_from_outperformance(geared: pd.DataFrame, market: pd.Series) -> None:
     """Outperformance credits the geared copy with beating the market. Alpha does not."""
     assert outperformance(geared, market, periods=250).iloc[-1] != pytest.approx(0.0, abs=1e-6)
+
+
+# ── Aligning two trading calendars ──────────────────────────────────────────
+
+
+def test_benchmark_bars_between_two_price_bars_are_not_discarded() -> None:
+    """The benchmark value as of a date is the last one at or before it, even
+    when it was printed on a day the instrument did not trade.
+
+    A German stock against a US index is the ordinary case: the two calendars
+    differ, and reindexing onto the price dates before forward-filling throws
+    away every benchmark bar that falls in a gap.
+    """
+    price_dates = pd.DatetimeIndex(["2024-01-01", "2024-01-03", "2024-01-05"], name="date")
+    prices = pd.DataFrame({"close": [100.0, 100.0, 100.0]}, index=price_dates)
+
+    benchmark = pd.Series(
+        [100.0, 200.0, 300.0],
+        index=pd.DatetimeIndex(["2024-01-01", "2024-01-02", "2024-01-05"], name="date"),
+        name="close",
+    )
+
+    line = relative_strength_line(prices, benchmark)
+    # On the 3rd the market stands at 200, so the instrument has halved
+    # against it. Taking the 1st instead reports no change at all.
+    assert line.iloc[1] == pytest.approx(50.0)
+    assert line.iloc[2] == pytest.approx(100.0 / 3.0)
+
+
+def test_outperformance_sees_the_same_benchmark_as_the_valuation_module() -> None:
+    """Two modules doing the same as-of join must not disagree about it."""
+    from factorbase.factors.fundamentals.valuation import as_of
+
+    price_dates = pd.DatetimeIndex(["2024-01-01", "2024-01-03", "2024-01-05"], name="date")
+    prices = pd.DataFrame({"close": [100.0, 110.0, 120.0]}, index=price_dates)
+    benchmark = pd.Series(
+        [100.0, 200.0, 300.0],
+        index=pd.DatetimeIndex(["2024-01-01", "2024-01-02", "2024-01-05"], name="date"),
+        name="close",
+    )
+    own = (prices["close"] / prices["close"].shift(1) - 1.0) * 100.0
+    market = as_of(benchmark, price_dates)
+    expected = own - (market / market.shift(1) - 1.0) * 100.0
+
+    result = outperformance(prices, benchmark, periods=1)
+    assert np.allclose(result.dropna(), expected.dropna())
+
+
+def test_a_benchmark_that_ends_before_the_prices_begin_raises(wobble: pd.DataFrame) -> None:
+    """Forward-filling would otherwise stretch one stale print across the whole
+    frame and count as full coverage."""
+    stale = pd.Series(
+        [1.0, 2.0],
+        index=pd.DatetimeIndex(["1990-01-01", "1990-01-02"], name="date"),
+    )
+    with pytest.raises(InsufficientHistoryError):
+        outperformance(wobble, stale, periods=10)
+
+
+def test_a_benchmark_that_starts_after_the_prices_end_raises(wobble: pd.DataFrame) -> None:
+    stale = pd.Series(
+        [1.0, 2.0],
+        index=pd.DatetimeIndex(["2090-01-01", "2090-01-02"], name="date"),
+    )
+    with pytest.raises(InsufficientHistoryError):
+        outperformance(wobble, stale, periods=10)

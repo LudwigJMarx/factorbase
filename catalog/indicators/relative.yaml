@@ -1,4 +1,15 @@
 # Measured against a benchmark. Every entry here but the first needs one.
+#
+# The benchmark is read as of each price date: the last print at or before it.
+# It is not reindexed onto the price dates first, because that discards every
+# benchmark bar falling on a day the instrument did not trade, and two exchanges
+# disagree about the calendar most weeks. The same join is used by the valuation
+# family, deliberately: two modules answering the same question must not answer
+# it differently.
+#
+# A benchmark whose period does not overlap the prices raises. Counting
+# non-missing values after the fill does not catch that - one stale print
+# carried across thirty years looks like complete coverage.
 
 factors:
   - id: relative_strength_levy

@@ -24,7 +24,11 @@ factors:
       - latex: 'U_t = \max(C_t - C_{t-1},\, 0), \qquad D_t = \max(C_{t-1} - C_t,\, 0)'
         note: Gain and loss of a single bar, both non-negative.
       - latex: '\overline{U}_t = \frac{(n-1)\overline{U}_{t-1} + U_t}{n}, \qquad \overline{D}_t = \frac{(n-1)\overline{D}_{t-1} + D_t}{n}'
-        note: Wilder smoothing, seeded with the simple mean of the first n values.
+        note: >-
+          Wilder smoothing, seeded with the mean of the first n values that
+          exist. Gains and losses come from a difference, so the first entry is
+          missing; seeding at a fixed offset instead averages n-1 of them and
+          places the reading a bar early.
       - latex: 'RS_t = \frac{\overline{U}_t}{\overline{D}_t}'
       - latex: 'RSI_t = 100 - \frac{100}{1 + RS_t}'
         note: Equivalently 100 \cdot \overline{U} / (\overline{U} + \overline{D}), which is defined when the average loss is zero.

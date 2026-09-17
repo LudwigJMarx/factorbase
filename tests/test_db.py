@@ -92,3 +92,38 @@ def test_the_input_vocabulary_is_carried_across(database: Path) -> None:
             "WHERE field NOT IN (SELECT field FROM input_field)"
         ).fetchone()
     assert unknown == 0
+
+
+def test_build_closes_its_connection_before_returning(tmp_path: Path) -> None:
+    """sqlite3's context manager commits the transaction and does not close.
+
+    On CPython the connection is released anyway, by reference counting, the
+    moment build() returns - which is why the file can be replaced here and
+    why the original probe for this looked like a leak only until the garbage
+    collector was asked to run. The dependency on that is the defect: on an
+    implementation without prompt refcounting, or with a reference surviving in
+    a traceback, the handle stays open and the next build's unlink() fails on
+    Windows.
+
+    So the assertion is that the connection is closed, not that it is
+    collectable. A closed connection raises on use; an open one does not.
+    """
+    import sqlite3
+
+    opened: list[sqlite3.Connection] = []
+    real_connect = sqlite3.connect
+
+    def spy(*args: object, **kwargs: object) -> sqlite3.Connection:
+        connection = real_connect(*args, **kwargs)  # type: ignore[arg-type]
+        opened.append(connection)
+        return connection
+
+    sqlite3.connect = spy  # type: ignore[assignment]
+    try:
+        build(tmp_path / "closed.sqlite3")
+    finally:
+        sqlite3.connect = real_connect  # type: ignore[assignment]
+
+    assert len(opened) == 1
+    with pytest.raises(sqlite3.ProgrammingError):
+        opened[0].execute("SELECT count(*) FROM factor")

@@ -6,7 +6,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from factorbase.factors._common import exponential_moving_average, simple_moving_average
+from factorbase.factors._common import (
+    exponential_moving_average,
+    simple_moving_average,
+    wilder_smoothing,
+)
 from factorbase.factors.momentum import (
     absolute_price_change,
     cci,
@@ -242,3 +246,48 @@ def test_bressert_rescales_further_than_blau(wobble: pd.DataFrame) -> None:
     blau = double_smoothed_stochastic_blau(wobble).dropna()
     bressert = double_smoothed_stochastic_bressert(wobble).dropna()
     assert bressert.max() - bressert.min() > blau.max() - blau.min()
+
+
+# ── Where the smoothing starts ──────────────────────────────────────────────
+
+# fmt: off
+WILDER_EXAMPLE = [
+    44.34, 44.09, 44.15, 43.61, 44.33, 44.83, 45.10, 45.42, 45.84, 46.08, 45.89,
+    46.03, 45.61, 46.28, 46.28, 46.00, 46.03, 46.41, 46.22, 45.64, 46.21, 46.25,
+    45.71, 46.45, 45.78, 45.35, 44.03, 44.18, 44.22, 44.57, 43.42, 42.66, 43.13,
+]
+# fmt: on
+
+
+def test_wilder_smoothing_seeds_on_the_first_n_real_observations() -> None:
+    """The seed is the mean of n values, at the position of the nth of them.
+
+    A series whose first entry is missing has its nth real observation at
+    index n, not at n-1. Placing the seed at a fixed offset instead averages
+    n-1 values and calls the result an n-period reading.
+    """
+    values = pd.Series([np.nan] + [2.0] * 5 + [8.0] * 10)
+    smoothed = wilder_smoothing(values, 5)
+    assert smoothed.first_valid_index() == 5
+    assert smoothed.iloc[5] == pytest.approx(2.0)
+    assert smoothed.iloc[:5].isna().all()
+
+
+def test_rsi_emits_exactly_the_readings_wilder_defines() -> None:
+    """33 closes give 32 changes, so RSI(14) has 19 readings, starting at index 14."""
+    frame = pd.DataFrame({"close": WILDER_EXAMPLE})
+    result = rsi(frame, periods=14)
+    assert result.first_valid_index() == 14
+    assert int(result.notna().sum()) == len(WILDER_EXAMPLE) - 14
+
+
+def test_rsi_first_reading_matches_the_hand_computed_seed() -> None:
+    """Checked against Wilder's definition, not against this implementation."""
+    changes = np.diff(np.array(WILDER_EXAMPLE))
+    average_gain = np.maximum(changes, 0.0)[:14].mean()
+    average_loss = np.maximum(-changes, 0.0)[:14].mean()
+    expected = 100.0 - 100.0 / (1.0 + average_gain / average_loss)
+
+    frame = pd.DataFrame({"close": WILDER_EXAMPLE})
+    assert rsi(frame, periods=14).iloc[14] == pytest.approx(expected)
+    assert expected == pytest.approx(70.4641, abs=1e-4)
