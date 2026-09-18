@@ -170,6 +170,12 @@ shortfall. A benchmark that does not overlap the prices raises rather than
 producing a column of NaN, because a NaN column looks like a quiet instrument
 and is a wiring mistake.
 
+## Reading the catalogue
+
+[`docs/catalogue.md`](docs/catalogue.md) is every entry in one file, with its
+formula, its parameters and what it consumes. It is generated from the YAML and
+a CI gate fails when the two drift apart, so it cannot quietly go stale.
+
 ## Reading the catalogue without Python
 
 The YAML under `catalog/` is the source of truth and is meant to be read
@@ -208,6 +214,7 @@ nothing.
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/python -m pytest tests/ -W error::DeprecationWarning
 .venv/bin/python scripts/check_catalog_wired.py
+.venv/bin/python scripts/check_docs_current.py --write   # after changing an entry
 ```
 
 [CONTRIBUTING.md](CONTRIBUTING.md) says what an entry has to state and what

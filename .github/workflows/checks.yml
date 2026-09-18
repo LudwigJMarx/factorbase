@@ -68,6 +68,9 @@ jobs:
       - name: Types
         run: python3 -m mypy
 
+      - name: The committed reference matches the catalogue
+        run: python3 scripts/check_docs_current.py
+
       - name: The catalogue renders to SQLite
         run: python3 scripts/build_db.py --out /tmp/factorbase.sqlite3
 

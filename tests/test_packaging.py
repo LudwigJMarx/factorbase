@@ -119,3 +119,51 @@ def test_the_catalogue_states_every_second_series_a_factor_needs() -> None:
     for factor in catalog:
         if factor.companions:
             assert factor.kind.value in {"fundamental", "indicator"}, factor.id
+
+
+def test_the_generated_reference_is_current() -> None:
+    """The committed docs/catalogue.md must match what the catalogue renders to.
+
+    The check is a CI gate as well; this is here so that the suite everyone runs
+    fails too, rather than leaving a stale reference to the one job somebody
+    might skip.
+    """
+    import subprocess
+    import sys
+
+    finished = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "check_docs_current.py")],
+        capture_output=True,
+        text=True,
+    )
+    assert finished.returncode == 0, finished.stdout + finished.stderr
+
+
+def test_every_index_link_resolves() -> None:
+    """192 links into one file. One broken anchor is invisible until somebody
+    clicks it, and nobody clicks 192 of them."""
+    import re
+
+    text = (ROOT / "docs" / "catalogue.md").read_text(encoding="utf-8")
+
+    def slug(heading: str) -> str:
+        kept = re.sub(r"[^\w\s-]", "", heading.lower())
+        return re.sub(r"\s+", "-", kept.strip())
+
+    anchors = {slug(m.group(1)) for m in re.finditer(r"^#{2,4} (.+)$", text, re.M)}
+    links = re.findall(r"\]\(#([^)]+)\)", text)
+
+    assert len(links) >= 190
+    assert [link for link in links if link not in anchors] == []
+
+
+def test_the_reference_carries_a_formula_for_every_entry() -> None:
+    """The document exists to be read instead of the YAML, so anything the YAML
+    states has to survive the rendering."""
+    from factorbase import default_catalog
+
+    text = (ROOT / "docs" / "catalogue.md").read_text(encoding="utf-8")
+    for factor in default_catalog():
+        assert f"`{factor.id}` - {factor.name}" in text, factor.id
+        for formula in factor.formulas:
+            assert formula.latex in text, f"{factor.id}: formula missing from the reference"

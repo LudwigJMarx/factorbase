@@ -43,6 +43,15 @@ A factor is a YAML entry under `catalog/` and a function under
 | `references` | where the definition comes from |
 | `implementation` | `module:function`, checked by CI |
 
+After changing any entry, regenerate the reference:
+
+```bash
+python3 scripts/check_docs_current.py --write
+```
+
+`docs/catalogue.md` is built from the YAML, never edited, and a CI gate fails
+when the committed copy no longer matches.
+
 **The description says what the factor is not.** Every entry here that is worth
 reading twice does. Where two implementations of the same name disagree, say
 which one this is: Wilder's 1/n against 2/(n+1), the sample deviation against
