@@ -228,6 +228,31 @@ The floor is now a CI job rather than a claim in pyproject. A declared minimum
 that nothing installs is a guess, and pip resolves to the newest release every
 time.
 
+## Someone downstream pins these numbers
+
+Released on PyPI since 18.09.2026. A number that changes here is not a local
+matter any more.
+
+`mesura` depends on `factorbase>=0.1.0,<0.2` for its baseline strategies, and
+the upper bound is deliberate: at 0.x a minor release is allowed to change what
+a factor computes, and two things over there are measured against what this
+package returns.
+
+- Its warm-up counts for the reference strategies are measured, not derived
+  from the period lengths. A factor that starts one bar earlier or later moves
+  them.
+- `belege/paper-2412.20138.md` records concrete outputs, and those are the
+  evidence for its findings against a published paper.
+
+So before a release that changes any factor's output: say which entries moved
+and by how much, in the release notes and to whoever maintains that package.
+Not "the smoothing was corrected" but the old value, the new one, and the input
+that shows the difference. A consumer that has to rerun a baseline needs to know
+which baseline, and a promise made in a chat window is not a promise.
+
+A correction that only removes a defect still counts. `wilder_smoothing` seeding
+one bar early was a defect, and fixing it moved every number that depends on it.
+
 ## Naming
 
 `factorbase.factors` holds the implementations, not `factorbase.compute`.
