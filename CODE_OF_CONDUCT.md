@@ -59,9 +59,13 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at
-ludwig@ludwigjmarx.com. All complaints will be reviewed and investigated
-promptly and fairly.
+reported by opening a private advisory at
+<https://github.com/LudwigJMarx/factorbase/security/advisories/new>, which is
+visible only to the maintainer, or through the contact details on
+<https://github.com/LudwigJMarx>. A reporting path that does not depend on a
+mail address is deliberate: the address changes, the repository does not.
+
+All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the
 reporter of any incident.
