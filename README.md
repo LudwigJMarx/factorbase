@@ -87,6 +87,9 @@ The traps are checked in both directions. If a difference this file describes
 ever disappears, the job fails, because a note that reads as current and
 describes something that no longer happens is worse than no note.
 
+The table above in full, with the traps and the convergence figures, is in
+[`docs/compared-with-ttr.md`](docs/compared-with-ttr.md).
+
 ```bash
 python3 scripts/check_against_ttr.py    # needs R with TTR
 ```
@@ -173,8 +176,12 @@ and is a wiring mistake.
 ## Reading the catalogue
 
 [`docs/catalogue.md`](docs/catalogue.md) is every entry in one file, with its
-formula, its parameters and what it consumes. It is generated from the YAML and
-a CI gate fails when the two drift apart, so it cannot quietly go stale.
+formula, its parameters and what it consumes.
+[`docs/compared-with-ttr.md`](docs/compared-with-ttr.md) is the measurement
+behind the claim above, as a table.
+
+Both are generated from the YAML, and a CI gate fails when either drifts apart
+from it, so neither can quietly go stale.
 
 ## Reading the catalogue without Python
 

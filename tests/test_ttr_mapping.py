@@ -103,3 +103,28 @@ def test_the_checker_is_named_in_a_workflow() -> None:
     text = "\n".join(path.read_text(encoding="utf-8") for path in workflows)
     assert "scripts/check_against_ttr.py" in text
     assert "r-lib/actions/setup-r" in text
+
+
+def test_the_rendered_comparison_states_every_mapping(document: dict) -> None:
+    """The document exists to be read instead of the YAML, so nothing may be
+    lost on the way. Each factor named once, and every trap's measured
+    difference carried across."""
+    text = (ROOT / "docs" / "compared-with-ttr.md").read_text(encoding="utf-8")
+
+    for mapping in document["mappings"]:
+        assert f"`{mapping['factor']}`" in text, mapping["factor"]
+        trap = mapping.get("trap")
+        if trap:
+            assert trap["call"] in text, f"{mapping['factor']}: trap call missing"
+            assert f"{trap['measured_difference']:g}" in text, mapping["factor"]
+
+
+def test_a_factor_appears_in_exactly_one_section(document: dict) -> None:
+    """historical_volatility was listed both as a trap and as not compared, the
+    trap entry claiming an agreeing call that is not a TTR function at all."""
+    import re
+
+    text = (ROOT / "docs" / "compared-with-ttr.md").read_text(encoding="utf-8")
+    for mapping in document["mappings"]:
+        headings = re.findall(rf"^### `{re.escape(mapping['factor'])}`$", text, re.M)
+        assert len(headings) <= 1, f"{mapping['factor']} has {len(headings)} sections"
