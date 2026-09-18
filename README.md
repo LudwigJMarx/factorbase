@@ -179,9 +179,27 @@ and is a wiring mistake.
 formula, its parameters and what it consumes.
 [`docs/compared-with-ttr.md`](docs/compared-with-ttr.md) is the measurement
 behind the claim above, as a table.
+[`docs/mapped-to-edgar.md`](docs/mapped-to-edgar.md) says which XBRL concept
+holds which field of the data contract, and which one a filer actually uses.
 
-Both are generated from the YAML, and a CI gate fails when either drifts apart
-from it, so neither can quietly go stale.
+All three are generated from the YAML, and a CI gate fails when any of them
+drifts apart from it, so none can quietly go stale.
+
+## Where the numbers come from
+
+This package computes; it does not fetch. It opens no socket and will not grow
+an HTTP dependency, because a downloader means rate limiting, caching and a
+contact address under the SEC's fair-access policy, and anyone with a data
+pipeline already has those.
+
+What it offers instead is the part that is genuinely hard to get right.
+`catalog/mappings/edgar.yaml` maps every field of the fundamental data contract
+to the XBRL concepts filers use for it, in the order to try them, measured
+across seven filers chosen for different shapes. The ordering matters more than
+it sounds: `Revenues` is current for JPMorgan and has not appeared in an Apple
+annual filing since 2018, and Ford's latest net income sits under `ProfitLoss`
+while its `NetIncomeLoss` is a year behind. Code that takes the first tag it
+finds returns stale numbers without ever failing.
 
 ## Reading the catalogue without Python
 
