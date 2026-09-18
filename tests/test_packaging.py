@@ -168,6 +168,7 @@ def test_the_reference_carries_a_formula_for_every_entry() -> None:
         for formula in factor.formulas:
             assert formula.latex in text, f"{factor.id}: formula missing from the reference"
 
+
 def test_the_package_ships_its_type_marker() -> None:
     """Without py.typed a consumer gets no types, however strict this package is.
 
