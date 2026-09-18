@@ -167,3 +167,23 @@ def test_the_reference_carries_a_formula_for_every_entry() -> None:
         assert f"`{factor.id}` - {factor.name}" in text, factor.id
         for formula in factor.formulas:
             assert formula.latex in text, f"{factor.id}: formula missing from the reference"
+
+def test_the_package_ships_its_type_marker() -> None:
+    """Without py.typed a consumer gets no types, however strict this package is.
+
+    mypy runs here in strict mode over all of src/factorbase, and every public
+    function is annotated. None of that reaches anyone who installs the package:
+    PEP 561 says a type checker ignores an installed package's annotations
+    unless the package ships the marker. mesura, the first consumer, works
+    around it with `ignore_missing_imports = true` for `factorbase.*`, which
+    also silences a genuinely wrong call.
+
+    The marker has to be inside the installed package, not merely in the
+    checkout, so this asserts against the imported module's own directory.
+    """
+    import factorbase
+
+    package = Path(factorbase.__file__).parent
+    assert (package / "py.typed").is_file(), (
+        f"no py.typed in {package}; annotations will not reach any consumer"
+    )
