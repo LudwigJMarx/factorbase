@@ -49,6 +49,15 @@ jobs:
       - name: The wiring checker's own test
         run: python3 scripts/check_gates_wired.test.py
 
+      # Packaging metadata, on every push rather than at the moment of an
+      # upload. The rule this catches was shipped for a day because hatchling
+      # writes it without complaint and `twine check` passes either way.
+      - name: The metadata this package would upload with
+        run: python3 scripts/check_metadata.py
+
+      - name: The metadata checker's own test
+        run: python3 scripts/check_metadata.test.py
+
       # ── THE PROJECT ITSELF ──────────────────────────────────────────────
       # Each gate named separately rather than hidden in one step, so a red
       # square says WHAT is red.
