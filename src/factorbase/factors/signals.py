@@ -16,9 +16,15 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ._common import moving_average, require_columns, simple_moving_average
+from ._common import (
+    exponential_moving_average,
+    moving_average,
+    require_columns,
+    simple_moving_average,
+)
 from .momentum import macd as macd_line
 from .momentum import macd_signal, stochastic_slow_d, stochastic_slow_k
+from .trend import adx, minus_di, plus_di
 from .volatility import atr, bollinger_bands
 
 
@@ -480,3 +486,158 @@ def gilligans_island_sell(
     gapped = prices["open"] > prior_high
     rejected = prices["close"] <= prices["open"]
     return (gapped & rejected & (position >= 1.0 - close_position)).fillna(False).astype("bool")
+
+
+def capitulation_bar(
+    prices: pd.DataFrame,
+    low_periods: int = 65,
+    minimum_fall: float = 5.0,
+    minimum_off_high: float = 25.0,
+    volume_periods: int = 21,
+    volume_multiple: float = 2.0,
+) -> pd.Series:
+    """Five conditions that together describe a day of forced selling.
+
+    Catalogue id `capitulation_bar`.
+
+    All five have to hold: a low below every low of the past quarter, a close in
+    the lower half of the day's range, a fall of at least five percent against
+    the previous close, a price at least a quarter below the quarter's high, and
+    volume at least double the four-week average.
+
+    Two of the windows deliberately include the current bar and one does not,
+    because that is how the rule is stated rather than how this package would
+    have chosen. The new low compares against the previous 65 bars only. The
+    high and the volume average both include today. The volume one matters: a
+    bar's own volume sits in the average it is measured against, so the spike
+    damps its own reading by a twenty-first of itself. `relative_volume` in this
+    catalogue excludes the current bar for exactly that reason, and the two
+    therefore disagree by design.
+    """
+    require_columns(prices, ("high", "low", "close", "volume"), "capitulation_bar")
+    new_low = (
+        prices["low"] < prices["low"].shift(1).rolling(low_periods, min_periods=low_periods).min()
+    )
+    lower_half = prices["close"] < (prices["high"] + prices["low"]) / 2.0
+    fell = prices["close"] / prices["close"].shift(1) <= 1.0 - minimum_fall / 100.0
+    quarter_high = prices["high"].rolling(low_periods + 1, min_periods=low_periods + 1).max()
+    off_high = prices["close"] / quarter_high <= 1.0 - minimum_off_high / 100.0
+    heavy = (
+        prices["volume"]
+        / prices["volume"].rolling(volume_periods, min_periods=volume_periods).mean()
+        >= volume_multiple
+    )
+    return (new_low & lower_half & fell & off_high & heavy).fillna(False).astype("bool")
+
+
+def _band_edges(
+    prices: pd.DataFrame, periods: int, deviations: float, sample: bool
+) -> tuple[pd.Series, pd.Series]:
+    """Bollinger edges with the deviation basis made explicit.
+
+    The catalogue's own Bollinger entries use the population deviation, which is
+    what Bollinger specified and what TTR computes. The two signals below are
+    stated against the sample deviation. At twenty periods the sample figure is
+    larger by a factor of sqrt(20/19), so the bands sit about 2.6 percent wider
+    and a candle sitting just outside one of them may be inside the other.
+    Neither basis is wrong and the difference is not noise, so it is a
+    parameter rather than a silent choice.
+    """
+    require_columns(prices, ("close",), "bollinger_band_outlier")
+    middle = simple_moving_average(prices["close"], periods)
+    spread = (
+        prices["close"].rolling(periods, min_periods=periods).std(ddof=1 if sample else 0)
+        * deviations
+    )
+    return middle - spread, middle + spread
+
+
+def bollinger_band_outlier_long(
+    prices: pd.DataFrame,
+    periods: int = 20,
+    deviations: float = 2.0,
+    minimum_range: float = 1.03,
+    reach: float = 0.1,
+    sample_deviation: bool = True,
+) -> pd.Series:
+    """A candle wholly below the lower band, or reaching it on a wide day.
+
+    Catalogue id `bollinger_band_outlier_long`.
+
+    Two ways to qualify. Either the close is below the lower band outright, or
+    the day is wide enough, high over low above the stated ratio, and its low
+    comes within a tenth of the day's range of the band. The second is the
+    interesting half: a bar can be a long way outside the band at its worst and
+    close back inside, and that bar has still traded where nothing traded for
+    twenty sessions.
+    """
+    lower, _ = _band_edges(prices, periods, deviations, sample_deviation)
+    require_columns(prices, ("high", "low", "close"), "bollinger_band_outlier_long")
+    span = prices["high"] - prices["low"]
+    outright = prices["close"] < lower
+    wide = prices["high"] / prices["low"] > minimum_range
+    reaches = prices["low"] - span * reach < lower
+    return (outright | (wide & reaches)).fillna(False).astype("bool")
+
+
+def bollinger_band_outlier_short(
+    prices: pd.DataFrame,
+    periods: int = 20,
+    deviations: float = 2.0,
+    minimum_range: float = 1.03,
+    reach: float = 0.1,
+    sample_deviation: bool = True,
+) -> pd.Series:
+    """A candle wholly above the upper band, or reaching it on a wide day.
+
+    Catalogue id `bollinger_band_outlier_short`. The mirror of the entry above.
+    """
+    _, upper = _band_edges(prices, periods, deviations, sample_deviation)
+    require_columns(prices, ("high", "low", "close"), "bollinger_band_outlier_short")
+    span = prices["high"] - prices["low"]
+    outright = prices["close"] > upper
+    wide = prices["high"] / prices["low"] > minimum_range
+    reaches = prices["low"] + span * reach > upper
+    return (outright | (wide & reaches)).fillna(False).astype("bool")
+
+
+def holy_grail_pullback(
+    prices: pd.DataFrame,
+    adx_periods: int = 14,
+    adx_threshold: float = 30.0,
+    ema_periods: int = 20,
+    direction: str = "long",
+) -> pd.Series:
+    """Raschke's pullback to the 20-period average inside a strong trend.
+
+    Catalogue id `holy_grail_pullback`.
+
+    Three parts. The trend has to be strong, which ADX above 30 stands in for.
+    The previous bar has to have pulled back far enough to touch the
+    exponential average. Today has to take out the previous bar's extreme,
+    which is the stop order the method places rather than a condition on the
+    bar itself.
+
+    Encoding the entry as "yesterday touched, today broke yesterday's high" is
+    a choice. The method waits for a touch and then leaves a resting order,
+    which may fill several bars later; this fires only on the bar immediately
+    after. That is stricter than the method and makes the signal a function of
+    two bars instead of an open-ended state, which is what a screen can use.
+    """
+    if direction not in {"long", "short"}:
+        raise ValueError(f"unknown direction {direction!r}; expected 'long' or 'short'")
+    require_columns(prices, ("high", "low", "close"), "holy_grail_pullback")
+
+    strength = adx(prices, adx_periods)
+    trending = strength > adx_threshold
+    average = exponential_moving_average(prices["close"], ema_periods)
+    rising = plus_di(prices, adx_periods) > minus_di(prices, adx_periods)
+
+    if direction == "long":
+        touched = prices["low"].shift(1) <= average.shift(1)
+        triggered = prices["high"] > prices["high"].shift(1)
+        return (trending & rising & touched & triggered).fillna(False).astype("bool")
+
+    touched = prices["high"].shift(1) >= average.shift(1)
+    triggered = prices["low"] < prices["low"].shift(1)
+    return (trending & ~rising.fillna(False) & touched & triggered).fillna(False).astype("bool")

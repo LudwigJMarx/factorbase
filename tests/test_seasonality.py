@@ -109,7 +109,7 @@ def test_an_unknown_bucket_is_rejected() -> None:
     frame = weekday_series(length=300)
     for factor in (seasonal_strength, seasonal_hit_rate):
         with pytest.raises(ValueError, match="unknown bucket"):
-            factor(frame, bucket="month")
+            factor(frame, bucket="fortnight")
 
 
 def test_both_say_what_index_they_need() -> None:

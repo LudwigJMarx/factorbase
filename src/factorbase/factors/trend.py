@@ -235,3 +235,50 @@ def trend_template_score(
     score = conditions.sum(axis=1).astype("float64")
     score.iloc[: warm_up - 1] = np.nan
     return score
+
+
+def random_trade_win_rate(
+    prices: pd.DataFrame, periods: int = 260, hold_days: int = 0
+) -> pd.Series:
+    """Share of all buy-day and sell-day pairs inside the window that ended up.
+
+    Catalogue id `random_trade_win_rate`.
+
+    Every bar in the window is treated as a possible purchase and every later
+    bar as the sale. Over 260 bars that is 33,670 pairs, and the reading is the
+    percentage of them that closed higher than they opened. It asks what a
+    buyer with no timing skill would have achieved on this instrument, which is
+    a property of the price path rather than of any rule.
+
+    A high reading does not mean the instrument rose. A series that doubles in
+    one gap and drifts sideways either side of it scores far below one that
+    climbs steadily to the same place, because most pairs in the first case
+    start and end on the same plateau. It measures how reliably time in the
+    position paid, not how much.
+
+    `hold_days` restricts the pairs to a fixed holding period, so 10 asks what
+    a buyer who always sold after ten bars would have found. At 0 every pair
+    counts.
+    """
+    require_columns(prices, ("close",), "random_trade_win_rate")
+    closes = prices["close"].to_numpy(dtype="float64")
+    out = np.full(len(closes), np.nan)
+
+    for position in range(periods - 1, len(closes)):
+        window = closes[position - periods + 1 : position + 1]
+        if np.isnan(window).any():
+            continue
+        if hold_days > 0:
+            if hold_days >= periods:
+                continue
+            entries = window[:-hold_days]
+            exits = window[hold_days:]
+            out[position] = float((exits > entries).mean() * 100.0)
+            continue
+        # Upper triangle only: the sale has to come after the purchase.
+        gains = window[None, :] > window[:, None]
+        wins = int(np.triu(gains, k=1).sum())
+        pairs = periods * (periods - 1) // 2
+        out[position] = wins / pairs * 100.0
+
+    return pd.Series(out, index=prices.index, name="random_trade_win_rate")

@@ -28,12 +28,14 @@ import pandas as pd
 from ..errors import UnsupportedIndexError
 from ._common import require_columns
 
-BUCKETS = ("calendar_window", "day_of_week", "quarter")
+BUCKETS = ("calendar_window", "month", "day_of_week", "quarter")
 
 
 def _bucket_keys(index: pd.DatetimeIndex, bucket: str) -> np.ndarray:
     if bucket == "day_of_week":
         return index.dayofweek.to_numpy()
+    if bucket == "month":
+        return index.month.to_numpy()
     if bucket == "quarter":
         return index.quarter.to_numpy()
     if bucket == "calendar_window":

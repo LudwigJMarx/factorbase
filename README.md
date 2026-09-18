@@ -8,12 +8,12 @@ A catalogue of stock-screening factors. Every entry carries a written
 definition, the formula it is defined by, the data it consumes, and a reference
 implementation that is tested against the formula.
 
-186 entries, in four kinds:
+192 entries, in four kinds:
 
 | Kind | What it consumes | What it returns | Count |
 |---|---|---|---:|
-| `indicator` | price and volume history | a number per bar | 72 |
-| `signal` | price and volume history | a boolean per bar | 53 |
+| `indicator` | price and volume history | a number per bar | 74 |
+| `signal` | price and volume history | a boolean per bar | 57 |
 | `fundamental` | reported accounts | a number per reporting period | 55 |
 | `composite` | other factors' output, across a universe | a rank or a score per instrument | 6 |
 
@@ -21,8 +21,8 @@ By family:
 
 | Kind | Families |
 |---|---|
-| indicator | momentum (16), volatility (12), trend (10), performance (9), relative (9), moving average (7), volume (7), seasonality (2) |
-| signal | candlestick (24), crossing (12), breakout (10), volume event (5), structure (2) |
+| indicator | momentum (16), volatility (12), trend (11), performance (9), relative (9), volume (8), moving average (7), seasonality (2) |
+| signal | candlestick (24), crossing (15), breakout (10), volume event (6), structure (2) |
 | fundamental | valuation (15), profitability (13), leverage (10), growth (7), size (5), liquidity (3), distress (2) |
 | composite | ranking (6) |
 

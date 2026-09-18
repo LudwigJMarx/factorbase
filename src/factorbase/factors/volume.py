@@ -106,3 +106,17 @@ def volume_trend(prices: pd.DataFrame, periods: int = 20, lookback: int = 20) ->
     average = simple_moving_average(prices["volume"], periods)
     past = average.shift(lookback)
     return (average - past) / past * 100.0
+
+
+def average_volume(prices: pd.DataFrame, periods: int = 20) -> pd.Series:
+    """Mean volume over the window, in shares. Catalogue id `average_volume`.
+
+    In shares, not in currency. `average_turnover` argues that a share count
+    cannot be compared across instruments, and that argument stands: a million
+    shares of a one-euro stock and a million of a five-hundred-euro one are
+    different markets. What a share count can do is be compared to the same
+    instrument's own past, which is what a volume filter on a single name
+    actually needs, and it is the figure an exchange reports.
+    """
+    require_columns(prices, ("volume",), "average_volume")
+    return simple_moving_average(prices["volume"], periods)

@@ -1126,3 +1126,247 @@ factors:
       - "Cooper, J. (1996). Hit and Run Trading: The Short-Term Stock Traders' Bible."
     implementation: factorbase.factors.signals:gilligans_island_sell
     status: stable
+
+  - id: capitulation_bar
+    name: Capitulation Bar
+    kind: signal
+    family: volume_event
+    summary: Five conditions that together describe a day of forced selling.
+    description: >-
+      All five hold at once: a low below every low of the past quarter, a close
+      in the lower half of the day's range, a fall of at least five percent
+      against the previous close, a price at least a quarter below the
+      quarter's high, and volume at least double the four-week average.
+
+      Any one of them is ordinary. The combination is not: on a random walk it
+      never fires. That is the intended behaviour and it is worth saying,
+      because a signal that never fires on noise and rarely on data is easy to
+      mistake for a broken one.
+
+      Two of the three windows include the current bar and one does not. The
+      new low compares against the previous 65 bars only, while the quarter's
+      high and the four-week volume average both include today. The volume one
+      matters: a bar's own volume sits inside the average it is measured
+      against, so a spike damps its own reading by a twenty-first of itself.
+      `relative_volume` in this catalogue excludes the current bar for exactly
+      that reason, and the two therefore disagree by design rather than by
+      oversight.
+    formulas:
+      - latex: 'c_1 = L_t < \min_{1 \le i \le n} L_{t-i}'
+      - latex: 'c_2 = C_t < \frac{H_t + L_t}{2}'
+      - latex: 'c_3 = \frac{C_t}{C_{t-1}} \le 1 - \frac{f}{100}'
+      - latex: 'c_4 = \frac{C_t}{\max_{0 \le i \le n} H_{t-i}} \le 1 - \frac{d}{100}'
+        note: This window includes the current bar, unlike the one in c1.
+      - latex: 'c_5 = \frac{V_t}{\frac{1}{m} \sum_{i=0}^{m-1} V_{t-i}} \ge k'
+        note: This average includes the current bar too.
+    parameters:
+      - id: low_periods
+        name: Low periods
+        dtype: int
+        default: 65
+        minimum: 2
+        maximum: 100000
+        description: Length of the window the new low has to clear, about a quarter.
+      - id: minimum_fall
+        name: Minimum fall
+        dtype: float
+        default: 5.0
+        minimum: 0.0
+        maximum: 100.0
+        description: How far the close must fall against the previous one, in percent.
+      - id: minimum_off_high
+        name: Minimum distance from the high
+        dtype: float
+        default: 25.0
+        minimum: 0.0
+        maximum: 100.0
+        description: How far below the window's high the close must sit, in percent.
+      - id: volume_periods
+        name: Volume periods
+        dtype: int
+        default: 21
+        minimum: 1
+        maximum: 100000
+        description: Length of the volume average, about four weeks, current bar included.
+      - id: volume_multiple
+        name: Volume multiple
+        dtype: float
+        default: 2.0
+        minimum: 0.0
+        maximum: 100.0
+        description: How many average volumes the bar must trade.
+    inputs: [high, low, close, volume]
+    unit: boolean
+    direction: higher
+    references:
+      - "Wyckoff, R. D., in Pruden, H. (2007). The Three Skills of Top Trading, ch. 3."
+    implementation: factorbase.factors.signals:capitulation_bar
+    notes: >-
+      Related to `selling_climax` in this catalogue and not the same rule. That
+      one asks for an extended decline and a strong close; this one asks for a
+      new low and a weak close. A bar can satisfy either without the other.
+    status: stable
+
+  - id: bollinger_band_outlier_long
+    name: Bollinger Band Outlier, Long
+    kind: signal
+    family: crossing
+    summary: A candle wholly below the lower band, or reaching it on a wide day.
+    description: >-
+      Two ways to qualify. Either the close is below the lower band outright,
+      or the day is wide, high over low above the stated ratio, and its low
+      comes within a tenth of the day's range of the band. The second half is
+      the interesting one: a bar can trade a long way outside the band at its
+      worst and close back inside, and that bar has still been where nothing
+      traded for twenty sessions.
+
+      The bands here use the sample standard deviation, dividing by n-1. The
+      catalogue's own Bollinger entries use the population one, which is what
+      Bollinger specified and what TTR computes. At twenty periods the sample
+      figure is larger by a factor of sqrt(20/19), so these bands sit about 2.6
+      percent wider and a candle just outside one of them can be inside the
+      other. `sample_deviation` switches it, and the default follows the rule
+      this entry states rather than the rest of the catalogue.
+    formulas:
+      - latex: 's = \sqrt{\frac{1}{n-1} \sum_{i=1}^{n} \left( C_i - \bar{C} \right)^2}, \qquad L^{band} = SMA(C, n) - k s'
+      - latex: 'Outlier_t = \left( C_t < L^{band}_t \right) \;\vee\; \left( \frac{H_t}{L_t} > \rho \;\wedge\; L_t - (H_t - L_t) \, r < L^{band}_t \right)'
+    parameters: &band_outlier
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 2
+        maximum: 100000
+        description: Window of the bands.
+      - id: deviations
+        name: Deviations
+        dtype: float
+        default: 2.0
+        minimum: 0.1
+        maximum: 10.0
+        description: Band distance in standard deviations.
+      - id: minimum_range
+        name: Minimum range ratio
+        dtype: float
+        default: 1.03
+        minimum: 1.0
+        maximum: 10.0
+        description: How wide the bar must be, as high over low.
+      - id: reach
+        name: Reach
+        dtype: float
+        default: 0.1
+        minimum: 0.0
+        maximum: 1.0
+        description: How far past the bar's extreme the band may sit, as a share of the range.
+      - id: sample_deviation
+        name: Sample deviation
+        dtype: bool
+        default: true
+        description: >-
+          Divide by n-1 rather than by n. True follows this entry's own rule;
+          false matches the other Bollinger entries in this catalogue.
+    inputs: [high, low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Bollinger, J. (2001). Bollinger on Bollinger Bands, ch. 6."
+    implementation: factorbase.factors.signals:bollinger_band_outlier_long
+    notes: >-
+      The long and short forms are not mirror images, and the asymmetry is in
+      the rule rather than in this implementation. It lives in the second
+      clause, because both forms measure the reach from the bar's LOW. Long
+      asks that the low come down to the lower band, which a bar that merely
+      dips there satisfies while closing well above it. Short asks that the low
+      come up past the upper band, which needs the whole candle above it.
+
+      A bar that dips to the lower band therefore fires the long form, and its
+      exact mirror image does not fire the short one. The first clause, close
+      against band, is symmetric and does not carry the difference. How often
+      each fires on real data depends on the shape of the bars, so no ratio is
+      quoted here.
+    status: stable
+
+  - id: bollinger_band_outlier_short
+    name: Bollinger Band Outlier, Short
+    kind: signal
+    family: crossing
+    summary: A candle wholly above the upper band, or reaching it on a wide day.
+    description: >-
+      The counterpart of the long form and, as the note on that entry says, not
+      its mirror. The reach condition is measured from the bar's low in both
+      cases, so here it demands that even the low of the bar sits near or above
+      the upper band.
+    formulas:
+      - latex: 'Outlier_t = \left( C_t > U^{band}_t \right) \;\vee\; \left( \frac{H_t}{L_t} > \rho \;\wedge\; L_t + (H_t - L_t) \, r > U^{band}_t \right)'
+    parameters: *band_outlier
+    inputs: [high, low, close]
+    unit: boolean
+    direction: lower
+    references:
+      - "Bollinger, J. (2001). Bollinger on Bollinger Bands, ch. 6."
+    implementation: factorbase.factors.signals:bollinger_band_outlier_short
+    status: stable
+
+  - id: holy_grail_pullback
+    name: Holy Grail Pullback
+    kind: signal
+    family: crossing
+    summary: A pullback to the 20-period average inside a strong trend, taken out the next bar.
+    description: >-
+      Raschke's setup, in three parts. The trend has to be strong, which an ADX
+      above 30 stands in for. The previous bar has to have pulled back far
+      enough to touch the exponential average. Today has to take out that bar's
+      extreme, which is the resting stop order the method places rather than a
+      condition on the bar itself.
+
+      Encoding the entry as "yesterday touched, today broke yesterday's high"
+      is a choice and a strict one. The method waits for a touch and then
+      leaves an order that may fill several bars later; this fires only on the
+      bar immediately after. That makes the signal a function of two bars
+      rather than of an open-ended state, which is what a screen can evaluate,
+      and it will miss fills the method would have taken.
+    formulas:
+      - latex: 'Trend_t = ADX_t(n) > \theta'
+      - latex: 'Touch_{t-1} = L_{t-1} \le EMA_{t-1}(m)'
+      - latex: 'Grail_t = Trend_t \wedge \left( +DI_t > -DI_t \right) \wedge Touch_{t-1} \wedge \left( H_t > H_{t-1} \right)'
+        note: The short form mirrors every term, including the direction of the DI comparison.
+    parameters:
+      - id: adx_periods
+        name: ADX periods
+        dtype: int
+        default: 14
+        minimum: 2
+        maximum: 100000
+        description: Window of the trend-strength reading.
+      - id: adx_threshold
+        name: ADX threshold
+        dtype: float
+        default: 30.0
+        minimum: 0.0
+        maximum: 100.0
+        description: How strong the trend must be.
+      - id: ema_periods
+        name: Average periods
+        dtype: int
+        default: 20
+        minimum: 2
+        maximum: 100000
+        description: Window of the exponential average the pullback must reach.
+      - id: direction
+        name: Direction
+        dtype: str
+        default: long
+        choices: [long, short]
+        description: Whether the pullback is into an uptrend or a downtrend.
+    inputs: [high, low, close]
+    unit: boolean
+    direction: higher
+    references:
+      - "Raschke, L. B. and Connors, L. (1995). Street Smarts: High Probability Short-Term Trading Strategies."
+    implementation: factorbase.factors.signals:holy_grail_pullback
+    notes: >-
+      Described for intraday charts as often as for daily ones. Nothing here is
+      specific to a bar length, and the ADX threshold of 30 was chosen against
+      daily data.
+    status: stable

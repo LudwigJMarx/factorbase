@@ -389,3 +389,60 @@ factors:
       - "Minervini, M. (2013). Trade Like a Stock Market Wizard, ch. 5."
     implementation: factorbase.factors.trend:trend_template_score
     status: stable
+
+  - id: random_trade_win_rate
+    name: Random Trade Win Rate
+    kind: indicator
+    family: trend
+    summary: Share of all buy-day and sell-day pairs in the window that ended up.
+    description: >-
+      Every bar in the window is treated as a possible purchase and every later
+      bar as the sale. Over 260 bars that is 33,670 pairs, and the reading is
+      the percentage of them that closed higher than they opened. It asks what
+      a buyer with no timing skill would have found, which is a property of the
+      price path rather than of any rule applied to it.
+
+      A high reading does not mean the instrument rose, and this is the part
+      worth understanding before ranking on it. A series that doubles in a
+      single gap and drifts sideways either side of it scores far below one
+      that climbs steadily to the same level, because most pairs in the first
+      case both start and end on the same plateau. The measure is how reliably
+      time in the position paid, not how much it paid.
+
+      `hold_days` restricts the pairs to a fixed holding period, so 10 asks
+      what a buyer who always sold ten bars later would have found. At 0 every
+      pair counts.
+    formulas:
+      - latex: 'P_t = \left\{ (i, j) : t - n < i < j \le t \right\}, \qquad |P_t| = \frac{n(n-1)}{2}'
+      - latex: 'W_t = \frac{\left| \{ (i,j) \in P_t : C_j > C_i \} \right|}{|P_t|} \cdot 100'
+      - latex: 'W^{h}_t = \frac{\left| \{ i : t - n < i \le t - h,\; C_{i+h} > C_i \} \right|}{n - h} \cdot 100'
+        note: The fixed-holding form, used when hold_days is above zero.
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 260
+        minimum: 2
+        maximum: 5000
+        description: Length of the window, in bars.
+      - id: hold_days
+        name: Holding period
+        dtype: int
+        default: 0
+        minimum: 0
+        maximum: 5000
+        description: >-
+          Count only pairs this many bars apart. 0 counts every pair, which is
+          the usual form.
+    inputs: [close]
+    unit: percent
+    direction: higher
+    output_range: [0, 100]
+    references:
+      - "Bachelier, L. (1900). Theorie de la speculation. Annales scientifiques de l'Ecole Normale Superieure 17."
+    implementation: factorbase.factors.trend:random_trade_win_rate
+    notes: >-
+      Compares every pair in the window, so the cost grows with the square of
+      `periods`. About 20 ms per thousand bars at the default, which is the
+      most expensive entry in this catalogue by an order of magnitude.
+    status: stable

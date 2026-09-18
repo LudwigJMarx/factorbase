@@ -48,10 +48,11 @@ factors:
         name: Bucket
         dtype: str
         default: calendar_window
-        choices: [calendar_window, day_of_week, quarter]
+        choices: [calendar_window, month, day_of_week, quarter]
         description: >-
-          What counts as the same point of the calendar: a window of days around
-          the same day of the year, the same weekday, or the same quarter.
+          What counts as the same point of the calendar: a window of days
+          around the same day of the year, the same calendar month, the same
+          weekday, or the same quarter.
       - id: years
         name: Years
         dtype: int
@@ -111,7 +112,7 @@ factors:
         name: Bucket
         dtype: str
         default: calendar_window
-        choices: [calendar_window, day_of_week, quarter]
+        choices: [calendar_window, month, day_of_week, quarter]
         description: What counts as the same point of the calendar.
       - id: years
         name: Years

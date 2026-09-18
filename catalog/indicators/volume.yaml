@@ -222,3 +222,38 @@ factors:
     references:
       - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 16."
     status: stable
+
+  - id: average_volume
+    name: Average Volume
+    kind: indicator
+    family: volume
+    summary: Mean volume over the window, in shares.
+    description: >-
+      In shares, not in currency. The turnover entry above argues that a share
+      count cannot be compared across instruments, and that argument stands: a
+      million shares of a one-euro stock and a million of a five-hundred-euro
+      one are different markets by three orders of magnitude.
+
+      What a share count can do is be compared against the same instrument's
+      own past, which is what a volume filter on a single name actually needs,
+      and it is the figure an exchange reports. Both are here because a screen
+      ranking a universe wants the first and a rule watching one name wants the
+      second.
+    formulas:
+      - latex: '\overline{V}_t = \frac{1}{n} \sum_{i=0}^{n-1} V_{t-i}'
+    parameters:
+      - id: periods
+        name: Periods
+        dtype: int
+        default: 20
+        minimum: 1
+        maximum: 100000
+        description: Length of the window.
+    inputs: [volume]
+    unit: count
+    direction: higher
+    output_range: [0, null]
+    references:
+      - "Kirkpatrick, C. D. and Dahlquist, J. R. (2010). Technical Analysis, 2nd ed., ch. 16."
+    implementation: factorbase.factors.volume:average_volume
+    status: stable
