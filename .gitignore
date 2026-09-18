@@ -10,6 +10,12 @@ _local/
 .env.*
 !.env.example
 
+# Points a session at ENGINEERING.md. Never committed: a filename that names an
+# assistant is a trace of machine collaboration, and no public repository here
+# carries one.
+CLAUDE.md
+AGENTS.md
+
 # Tool caches
 .mypy_cache/
 .pytest_cache/

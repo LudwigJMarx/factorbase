@@ -119,6 +119,6 @@ One concern per pull request. A reformatting bundled with a fix hides the fix.
 
 ## Rules this project works under
 
-[AGENTS.md](AGENTS.md) carries them, each attached to the run that forced it.
+[ENGINEERING.md](ENGINEERING.md) carries them, each attached to the run that forced it.
 A rule without an incident is an opinion, and that file has none of those.
 Reading it is the fastest way to understand why the code looks as it does.

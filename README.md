@@ -225,7 +225,7 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 ```
 
 [CONTRIBUTING.md](CONTRIBUTING.md) says what an entry has to state and what
-evidence a change needs. [AGENTS.md](AGENTS.md) has the rules this project
+evidence a change needs. [ENGINEERING.md](ENGINEERING.md) has the rules this project
 works under, each one attached to the run that forced it.
 
 ## Licence
