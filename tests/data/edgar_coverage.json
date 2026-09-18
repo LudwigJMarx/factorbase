@@ -1,0 +1,1353 @@
+{
+  "measured_on": "2026-09-18",
+  "endpoint": "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json",
+  "taxonomies": [
+    "us-gaap",
+    "dei"
+  ],
+  "what_the_year_means": "The latest fiscal year in which the filer reported that concept on a 10-K. A concept that exists but stopped being used is the trap this file exists to record: Revenues is current for JPM and dead since 2018 for AAPL.",
+  "filers": {
+    "AAPL": {
+      "cik": "0000320193",
+      "entity": "Apple Inc.",
+      "us_gaap_concepts": 503,
+      "shape": "classified balance sheet, one common class, no noncontrolling interest"
+    },
+    "JPM": {
+      "cik": "0000019617",
+      "entity": "JPMORGAN CHASE & CO",
+      "us_gaap_concepts": 918,
+      "shape": "bank, unclassified balance sheet, no cost of revenue and no operating income"
+    },
+    "WMT": {
+      "cik": "0000104169",
+      "entity": "WALMART INC.",
+      "us_gaap_concepts": 478,
+      "shape": "retailer, classified balance sheet, noncontrolling interest, no total liabilities tagged"
+    },
+    "BRKB": {
+      "cik": "0001067983",
+      "entity": "BERKSHIRE HATHAWAY INC",
+      "us_gaap_concepts": 437,
+      "shape": "conglomerate, unclassified balance sheet, two share classes, no single diluted EPS"
+    },
+    "F": {
+      "cik": "0000037996",
+      "entity": "Ford Motor Co",
+      "us_gaap_concepts": null,
+      "shape": "manufacturer with a captive finance arm"
+    },
+    "TGT": {
+      "cik": "0000027419",
+      "entity": "Target Corp",
+      "us_gaap_concepts": null,
+      "shape": "retailer"
+    },
+    "KO": {
+      "cik": "0000021344",
+      "entity": "Coca-Cola Co",
+      "us_gaap_concepts": null,
+      "shape": "consumer goods, long tagging history"
+    }
+  },
+  "fields": {
+    "revenue": {
+      "AAPL": [
+        {
+          "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "Revenues",
+          "latest_annual_fy": 2018
+        },
+        {
+          "tag": "SalesRevenueNet",
+          "latest_annual_fy": 2017
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "Revenues",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+          "latest_annual_fy": 2026
+        },
+        {
+          "tag": "Revenues",
+          "latest_annual_fy": 2026
+        },
+        {
+          "tag": "SalesRevenueNet",
+          "latest_annual_fy": 2018
+        }
+      ],
+      "BRKB": [
+        {
+          "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "Revenues",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "SalesRevenueNet",
+          "latest_annual_fy": 2017
+        }
+      ],
+      "F": [
+        {
+          "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "Revenues",
+          "latest_annual_fy": 2024
+        },
+        {
+          "tag": "SalesRevenueNet",
+          "latest_annual_fy": 2015
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "Revenues",
+          "latest_annual_fy": 2014
+        },
+        {
+          "tag": "SalesRevenueNet",
+          "latest_annual_fy": 2017
+        }
+      ],
+      "KO": [
+        {
+          "tag": "Revenues",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "cost_of_revenue": {
+      "AAPL": [
+        {
+          "tag": "CostOfGoodsAndServicesSold",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [],
+      "WMT": [
+        {
+          "tag": "CostOfRevenue",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [],
+      "F": [
+        {
+          "tag": "CostOfGoodsAndServicesSold",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "CostOfGoodsAndServicesSold",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "KO": [
+        {
+          "tag": "CostOfGoodsAndServicesSold",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "CostOfGoodsSold",
+          "latest_annual_fy": 2017
+        }
+      ]
+    },
+    "gross_profit": {
+      "AAPL": [
+        {
+          "tag": "GrossProfit",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [],
+      "WMT": [],
+      "BRKB": [],
+      "F": [],
+      "TGT": [
+        {
+          "tag": "GrossProfit",
+          "latest_annual_fy": 2017
+        }
+      ],
+      "KO": [
+        {
+          "tag": "GrossProfit",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "research_and_development": {
+      "AAPL": [
+        {
+          "tag": "ResearchAndDevelopmentExpense",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [],
+      "WMT": [],
+      "BRKB": [],
+      "F": [
+        {
+          "tag": "ResearchAndDevelopmentExpense",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [],
+      "KO": []
+    },
+    "ebit": {
+      "AAPL": [
+        {
+          "tag": "OperatingIncomeLoss",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [],
+      "WMT": [
+        {
+          "tag": "OperatingIncomeLoss",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [
+        {
+          "tag": "OperatingIncomeLoss",
+          "latest_annual_fy": 2012
+        }
+      ],
+      "F": [
+        {
+          "tag": "OperatingIncomeLoss",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "OperatingIncomeLoss",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "KO": [
+        {
+          "tag": "OperatingIncomeLoss",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "depreciation_amortisation": {
+      "AAPL": [
+        {
+          "tag": "DepreciationDepletionAndAmortization",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "DepreciationAmortizationAndAccretionNet",
+          "latest_annual_fy": 2017
+        },
+        {
+          "tag": "DepreciationAndAmortization",
+          "latest_annual_fy": 2016
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "DepreciationAmortizationAndAccretionNet",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "DepreciationDepletionAndAmortization",
+          "latest_annual_fy": 2019
+        },
+        {
+          "tag": "DepreciationAmortizationAndAccretionNet",
+          "latest_annual_fy": 2026
+        },
+        {
+          "tag": "DepreciationAndAmortization",
+          "latest_annual_fy": 2019
+        }
+      ],
+      "BRKB": [
+        {
+          "tag": "DepreciationDepletionAndAmortization",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "F": [
+        {
+          "tag": "DepreciationDepletionAndAmortization",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "DepreciationDepletionAndAmortization",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "DepreciationAndAmortization",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "KO": [
+        {
+          "tag": "DepreciationDepletionAndAmortization",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "interest_expense": {
+      "AAPL": [
+        {
+          "tag": "InterestExpense",
+          "latest_annual_fy": 2023
+        },
+        {
+          "tag": "InterestExpenseDebt",
+          "latest_annual_fy": 2021
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "InterestExpense",
+          "latest_annual_fy": 2023
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "InterestExpenseDebt",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [
+        {
+          "tag": "InterestExpense",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "F": [
+        {
+          "tag": "InterestExpenseNonoperating",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "InterestExpenseDebt",
+          "latest_annual_fy": 2020
+        },
+        {
+          "tag": "InterestExpense",
+          "latest_annual_fy": 2023
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "InterestExpenseNonoperating",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "InterestExpense",
+          "latest_annual_fy": 2023
+        }
+      ],
+      "KO": [
+        {
+          "tag": "InterestExpenseNonoperating",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "InterestExpense",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "pretax_income": {
+      "AAPL": [
+        {
+          "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+          "latest_annual_fy": 2012
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+          "latest_annual_fy": 2020
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+          "latest_annual_fy": 2026
+        },
+        {
+          "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+          "latest_annual_fy": 2021
+        }
+      ],
+      "BRKB": [
+        {
+          "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "F": [
+        {
+          "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+          "latest_annual_fy": 2016
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+          "latest_annual_fy": 2020
+        }
+      ],
+      "KO": [
+        {
+          "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "tax_expense": {
+      "AAPL": [
+        {
+          "tag": "IncomeTaxExpenseBenefit",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "IncomeTaxExpenseBenefit",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "IncomeTaxExpenseBenefit",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [
+        {
+          "tag": "IncomeTaxExpenseBenefit",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "F": [
+        {
+          "tag": "IncomeTaxExpenseBenefit",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "IncomeTaxExpenseBenefit",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "KO": [
+        {
+          "tag": "IncomeTaxExpenseBenefit",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "net_income": {
+      "AAPL": [
+        {
+          "tag": "NetIncomeLoss",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "NetIncomeLoss",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "ProfitLoss",
+          "latest_annual_fy": 2013
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "NetIncomeLoss",
+          "latest_annual_fy": 2026
+        },
+        {
+          "tag": "ProfitLoss",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [
+        {
+          "tag": "NetIncomeLoss",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "ProfitLoss",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "F": [
+        {
+          "tag": "NetIncomeLoss",
+          "latest_annual_fy": 2024
+        },
+        {
+          "tag": "ProfitLoss",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "NetIncomeLoss",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "ProfitLoss",
+          "latest_annual_fy": 2011
+        }
+      ],
+      "KO": [
+        {
+          "tag": "NetIncomeLoss",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "ProfitLoss",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "eps_diluted": {
+      "AAPL": [
+        {
+          "tag": "EarningsPerShareDiluted",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "EarningsPerShareDiluted",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "EarningsPerShareDiluted",
+          "latest_annual_fy": 2026
+        },
+        {
+          "tag": "IncomeLossFromContinuingOperationsPerDilutedShare",
+          "latest_annual_fy": 2019
+        }
+      ],
+      "BRKB": [],
+      "F": [
+        {
+          "tag": "EarningsPerShareDiluted",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "IncomeLossFromContinuingOperationsPerDilutedShare",
+          "latest_annual_fy": 2020
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "EarningsPerShareDiluted",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "IncomeLossFromContinuingOperationsPerDilutedShare",
+          "latest_annual_fy": 2021
+        }
+      ],
+      "KO": [
+        {
+          "tag": "EarningsPerShareDiluted",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "IncomeLossFromContinuingOperationsPerDilutedShare",
+          "latest_annual_fy": 2018
+        }
+      ]
+    },
+    "operating_cash_flow": {
+      "AAPL": [
+        {
+          "tag": "NetCashProvidedByUsedInOperatingActivities",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+          "latest_annual_fy": 2016
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "NetCashProvidedByUsedInOperatingActivities",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "NetCashProvidedByUsedInOperatingActivities",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [
+        {
+          "tag": "NetCashProvidedByUsedInOperatingActivities",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+          "latest_annual_fy": 2016
+        }
+      ],
+      "F": [
+        {
+          "tag": "NetCashProvidedByUsedInOperatingActivities",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+          "latest_annual_fy": 2018
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "NetCashProvidedByUsedInOperatingActivities",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+          "latest_annual_fy": 2021
+        }
+      ],
+      "KO": [
+        {
+          "tag": "NetCashProvidedByUsedInOperatingActivities",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+          "latest_annual_fy": null
+        }
+      ]
+    },
+    "capital_expenditure": {
+      "AAPL": [
+        {
+          "tag": "PaymentsToAcquirePropertyPlantAndEquipment",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "PaymentsToAcquireProductiveAssets",
+          "latest_annual_fy": 2014
+        }
+      ],
+      "JPM": [],
+      "WMT": [
+        {
+          "tag": "PaymentsToAcquirePropertyPlantAndEquipment",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [
+        {
+          "tag": "PaymentsToAcquirePropertyPlantAndEquipment",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "F": [
+        {
+          "tag": "PaymentsToAcquireProductiveAssets",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "PaymentsToAcquirePropertyPlantAndEquipment",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "KO": [
+        {
+          "tag": "PaymentsToAcquirePropertyPlantAndEquipment",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "dividends_paid": {
+      "AAPL": [
+        {
+          "tag": "PaymentsOfDividendsCommonStock",
+          "latest_annual_fy": 2017
+        },
+        {
+          "tag": "PaymentsOfDividends",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "PaymentsOfDividends",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "PaymentsOfDividendsCommonStock",
+          "latest_annual_fy": 2026
+        },
+        {
+          "tag": "PaymentsOfDividends",
+          "latest_annual_fy": 2020
+        }
+      ],
+      "BRKB": [],
+      "F": [
+        {
+          "tag": "PaymentsOfDividendsCommonStock",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "PaymentsOfDividendsCommonStock",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "KO": [
+        {
+          "tag": "PaymentsOfDividends",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "dividend_per_share_paid": {
+      "AAPL": [
+        {
+          "tag": "CommonStockDividendsPerShareCashPaid",
+          "latest_annual_fy": null
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "CommonStockDividendsPerShareCashPaid",
+          "latest_annual_fy": 2017
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "CommonStockDividendsPerShareCashPaid",
+          "latest_annual_fy": 2012
+        }
+      ],
+      "BRKB": [],
+      "F": [
+        {
+          "tag": "CommonStockDividendsPerShareCashPaid",
+          "latest_annual_fy": 2013
+        }
+      ],
+      "TGT": [],
+      "KO": [
+        {
+          "tag": "CommonStockDividendsPerShareCashPaid",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "dividend_per_share_declared": {
+      "AAPL": [
+        {
+          "tag": "CommonStockDividendsPerShareDeclared",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "CommonStockDividendsPerShareDeclared",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "CommonStockDividendsPerShareDeclared",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [],
+      "F": [
+        {
+          "tag": "CommonStockDividendsPerShareDeclared",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "CommonStockDividendsPerShareDeclared",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "KO": [
+        {
+          "tag": "CommonStockDividendsPerShareDeclared",
+          "latest_annual_fy": null
+        }
+      ]
+    },
+    "total_assets": {
+      "AAPL": [
+        {
+          "tag": "Assets",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "Assets",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "Assets",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [
+        {
+          "tag": "Assets",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "F": [
+        {
+          "tag": "Assets",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "Assets",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "KO": [
+        {
+          "tag": "Assets",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "current_assets": {
+      "AAPL": [
+        {
+          "tag": "AssetsCurrent",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [],
+      "WMT": [
+        {
+          "tag": "AssetsCurrent",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [],
+      "F": [
+        {
+          "tag": "AssetsCurrent",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "AssetsCurrent",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "KO": [
+        {
+          "tag": "AssetsCurrent",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "inventory": {
+      "AAPL": [
+        {
+          "tag": "InventoryNet",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [],
+      "WMT": [
+        {
+          "tag": "InventoryNet",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [
+        {
+          "tag": "InventoryNet",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "F": [
+        {
+          "tag": "InventoryNet",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "InventoryNet",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "KO": [
+        {
+          "tag": "InventoryNet",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "cash_and_equivalents": {
+      "AAPL": [
+        {
+          "tag": "CashAndCashEquivalentsAtCarryingValue",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "CashAndCashEquivalentsAtCarryingValue",
+          "latest_annual_fy": 2018
+        },
+        {
+          "tag": "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "CashAndCashEquivalentsAtCarryingValue",
+          "latest_annual_fy": 2026
+        },
+        {
+          "tag": "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [
+        {
+          "tag": "CashAndCashEquivalentsAtCarryingValue",
+          "latest_annual_fy": 2017
+        },
+        {
+          "tag": "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "F": [
+        {
+          "tag": "CashAndCashEquivalentsAtCarryingValue",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "CashAndCashEquivalentsAtCarryingValue",
+          "latest_annual_fy": null
+        },
+        {
+          "tag": "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "KO": [
+        {
+          "tag": "CashAndCashEquivalentsAtCarryingValue",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "total_liabilities": {
+      "AAPL": [
+        {
+          "tag": "Liabilities",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "Liabilities",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "WMT": [],
+      "BRKB": [
+        {
+          "tag": "Liabilities",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "F": [
+        {
+          "tag": "Liabilities",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [],
+      "KO": []
+    },
+    "current_liabilities": {
+      "AAPL": [
+        {
+          "tag": "LiabilitiesCurrent",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [],
+      "WMT": [
+        {
+          "tag": "LiabilitiesCurrent",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [],
+      "F": [
+        {
+          "tag": "LiabilitiesCurrent",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "LiabilitiesCurrent",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "KO": [
+        {
+          "tag": "LiabilitiesCurrent",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "long_term_debt": {
+      "AAPL": [
+        {
+          "tag": "LongTermDebtNoncurrent",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "LongTermDebt",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "LongTermDebt",
+          "latest_annual_fy": 2013
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "LongTermDebtNoncurrent",
+          "latest_annual_fy": 2026
+        },
+        {
+          "tag": "LongTermDebt",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [],
+      "F": [
+        {
+          "tag": "LongTermDebtNoncurrent",
+          "latest_annual_fy": 2020
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "LongTermDebtNoncurrent",
+          "latest_annual_fy": 2012
+        },
+        {
+          "tag": "LongTermDebt",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "KO": [
+        {
+          "tag": "LongTermDebtNoncurrent",
+          "latest_annual_fy": 2023
+        },
+        {
+          "tag": "LongTermDebt",
+          "latest_annual_fy": 2023
+        }
+      ]
+    },
+    "total_equity": {
+      "AAPL": [
+        {
+          "tag": "StockholdersEquity",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+          "latest_annual_fy": 2015
+        },
+        {
+          "tag": "StockholdersEquity",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+          "latest_annual_fy": 2026
+        },
+        {
+          "tag": "StockholdersEquity",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [
+        {
+          "tag": "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "StockholdersEquity",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "F": [
+        {
+          "tag": "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "StockholdersEquity",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+          "latest_annual_fy": 2010
+        },
+        {
+          "tag": "StockholdersEquity",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "KO": [
+        {
+          "tag": "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "StockholdersEquity",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "common_equity": {
+      "AAPL": [
+        {
+          "tag": "StockholdersEquity",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "StockholdersEquity",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "StockholdersEquity",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [
+        {
+          "tag": "StockholdersEquity",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "F": [
+        {
+          "tag": "StockholdersEquity",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "StockholdersEquity",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "KO": [
+        {
+          "tag": "StockholdersEquity",
+          "latest_annual_fy": 2025
+        }
+      ]
+    },
+    "shares_outstanding": {
+      "AAPL": [
+        {
+          "tag": "CommonStockSharesOutstanding",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "WeightedAverageNumberOfDilutedSharesOutstanding",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "EntityCommonStockSharesOutstanding",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "JPM": [
+        {
+          "tag": "CommonStockSharesOutstanding",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "WeightedAverageNumberOfDilutedSharesOutstanding",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "EntityCommonStockSharesOutstanding",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "WMT": [
+        {
+          "tag": "CommonStockSharesOutstanding",
+          "latest_annual_fy": 2011
+        },
+        {
+          "tag": "WeightedAverageNumberOfDilutedSharesOutstanding",
+          "latest_annual_fy": 2026
+        },
+        {
+          "tag": "EntityCommonStockSharesOutstanding",
+          "latest_annual_fy": 2026
+        }
+      ],
+      "BRKB": [
+        {
+          "tag": "EntityCommonStockSharesOutstanding",
+          "latest_annual_fy": 2010
+        }
+      ],
+      "F": [
+        {
+          "tag": "EntityCommonStockSharesOutstanding",
+          "latest_annual_fy": 2010
+        },
+        {
+          "tag": "WeightedAverageNumberOfDilutedSharesOutstanding",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "TGT": [
+        {
+          "tag": "EntityCommonStockSharesOutstanding",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "CommonStockSharesOutstanding",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "WeightedAverageNumberOfDilutedSharesOutstanding",
+          "latest_annual_fy": 2025
+        }
+      ],
+      "KO": [
+        {
+          "tag": "EntityCommonStockSharesOutstanding",
+          "latest_annual_fy": 2025
+        },
+        {
+          "tag": "WeightedAverageNumberOfDilutedSharesOutstanding",
+          "latest_annual_fy": 2025
+        }
+      ]
+    }
+  },
+  "note_on_scope": "All seven filers measured across all 26 fields. The first pass covered four; the other three were added when two concepts in the mapping turned out to have no measurement behind them, and then completed, because a dash in the generated table means the filer never used the tag and 'not measured' would have looked the same."
+}

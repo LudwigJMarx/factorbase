@@ -65,6 +65,12 @@ jobs:
       - name: The catalogue and the code still describe the same thing
         run: python3 scripts/check_catalog_wired.py
 
+      - name: The EDGAR mapping matches the data contract and the evidence
+        run: python3 scripts/check_edgar_mapping.py
+
+      - name: The EDGAR mapping checker's own test
+        run: python3 scripts/check_edgar_mapping.test.py
+
       - name: Tests
         run: python3 -m pytest tests/ -W error::DeprecationWarning
 

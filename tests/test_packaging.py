@@ -188,3 +188,62 @@ def test_the_package_ships_its_type_marker() -> None:
     assert (package / "py.typed").is_file(), (
         f"no py.typed in {package}; annotations will not reach any consumer"
     )
+
+
+def test_the_edgar_mapping_covers_the_data_contract() -> None:
+    """Every fundamental field is mapped, derived, or the mapping is incomplete.
+
+    The gate script says the same thing and runs in CI. This states it in the
+    suite as well: a field added to inputs.yaml without a line in the mapping
+    leaves a consumer finding nothing for it, which reads exactly like a
+    company that does not report it.
+    """
+    import json
+
+    import yaml
+
+    mapping = yaml.safe_load(
+        (ROOT / "catalog" / "mappings" / "edgar.yaml").read_text(encoding="utf-8")
+    )
+    inputs = yaml.safe_load((ROOT / "catalog" / "inputs.yaml").read_text(encoding="utf-8"))
+    evidence = json.loads((ROOT / mapping["evidence"]).read_text(encoding="utf-8"))
+
+    contract = set(inputs["fundamental"]["fields"]) - {"period"}
+    covered = {e["field"] for e in mapping["fields"]} | {e["field"] for e in mapping["derived"]}
+    assert contract == covered, f"not covered: {sorted(contract ^ covered)}"
+
+    # Every filer measured in every field, so a dash in the generated table
+    # means "never used this tag" and never "nobody looked".
+    filers = set(evidence["filers"])
+    for field, per_filer in evidence["fields"].items():
+        assert set(per_filer) == filers, f"{field}: measured for {sorted(per_filer)}"
+
+
+def test_the_edgar_mapping_names_no_concept_nobody_found() -> None:
+    """The rule that caught two tags written from memory.
+
+    CostOfGoodsSold had not been used by any measured filer since 2017, and
+    InterestExpenseNonoperating turned out to be the current tag for three of
+    them, which reordered the entry it belongs to.
+    """
+    import json
+
+    import yaml
+
+    mapping = yaml.safe_load(
+        (ROOT / "catalog" / "mappings" / "edgar.yaml").read_text(encoding="utf-8")
+    )
+    evidence = json.loads((ROOT / mapping["evidence"]).read_text(encoding="utf-8"))
+
+    measured = {
+        row["tag"]
+        for per_filer in evidence["fields"].values()
+        for rows in per_filer.values()
+        for row in rows
+    }
+    named = {
+        concept
+        for entry in mapping["fields"]
+        for concept in list(entry["concepts"]) + list(entry.get("historical", ()))
+    }
+    assert named <= measured, f"named without evidence: {sorted(named - measured)}"

@@ -23,6 +23,7 @@ Usage:  python3 scripts/check_docs_current.py [--write]
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
@@ -35,6 +36,8 @@ from factorbase.schema import Factor, Kind  # noqa: E402
 
 CATALOGUE = ROOT / "docs" / "catalogue.md"
 COMPARISON = ROOT / "docs" / "compared-with-ttr.md"
+EDGAR_MAPPING = ROOT / "catalog" / "mappings" / "edgar.yaml"
+EDGAR_DOC = ROOT / "docs" / "mapped-to-edgar.md"
 MAPPING = ROOT / "catalog" / "mappings" / "ttr.yaml"
 
 KIND_TITLES = {
@@ -295,6 +298,149 @@ def render_comparison(document: dict) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_edgar(mapping: dict, evidence: dict, catalog: Catalog) -> str:
+    """The EDGAR mapping as a document, with the measurement beside each entry.
+
+    Nothing is computed against the network at render time. Every year in here
+    comes out of the committed evidence file, so this document cannot claim a
+    tag is current when nobody has checked.
+    """
+    tickers = [f["ticker"] for f in mapping["filers_measured"]]
+
+    lines = [
+        "# Mapped to EDGAR",
+        "",
+        "Which XBRL concept holds which field of this catalogue's data contract, and",
+        "which one a filer actually uses. **This file is generated** from",
+        "`catalog/mappings/edgar.yaml` and `tests/data/edgar_coverage.json`.",
+        "",
+        "This package fetches nothing. It has no HTTP dependency and will not grow one:",
+        "a downloader means rate limiting, caching and a contact address under the SEC's",
+        "fair-access policy, and anyone with a data pipeline already has those. What",
+        "they do not have is the answer to which tag holds gross profit.",
+        "",
+        f"Measured on {mapping['measured_on']} against {len(tickers)} filers, chosen for",
+        "different shapes rather than for size:",
+        "",
+        "| Ticker | CIK | Shape |",
+        "|---|---|---|",
+    ]
+    for filer in mapping["filers_measured"]:
+        lines.append(f"| {filer['ticker']} | `{filer['cik']}` | {filer['shape']} |")
+
+    lines += [
+        "",
+        "## The trap this is mostly about",
+        "",
+        "A concept that exists is not a concept in use. `Revenues` sits in Apple's",
+        "company facts and has not appeared on a 10-K since FY2018. Code that takes the",
+        "first tag it finds reads a seven-year-old figure and returns it as current.",
+        "",
+        "So each row below carries the last fiscal year each filer reported that concept",
+        "on an annual filing. Pick by that, not by presence. A dash means the filer has",
+        "never used the tag.",
+        "",
+        "## Fields",
+        "",
+    ]
+
+    for entry in mapping["fields"]:
+        feld = entry["field"]
+        lines.append(f"### `{feld}`")
+        lines.append("")
+        lines.append(f"Unit: `{entry['unit']}`. Try in this order:")
+        lines.append("")
+        gemessen = evidence["fields"].get(feld, {})
+        lines.append("| Concept | " + " | ".join(tickers) + " |")
+        lines.append("|---" * (len(tickers) + 1) + "|")
+        for concept in list(entry["concepts"]) + list(entry.get("historical", ())):
+            marke = " *(historical)*" if concept in entry.get("historical", ()) else ""
+            zellen = []
+            for ticker in tickers:
+                treffer = [r for r in gemessen.get(ticker, []) if r["tag"] == concept]
+                if not treffer:
+                    zellen.append("-")
+                else:
+                    jahr = treffer[0]["latest_annual_fy"]
+                    zellen.append(str(jahr) if jahr else "no 10-K")
+            lines.append(f"| `{concept}`{marke} | " + " | ".join(zellen) + " |")
+        if entry.get("derive_if_absent"):
+            lines.append("")
+            lines.append(f"If absent: `{entry['derive_if_absent']}`")
+        if entry.get("taxonomy_note"):
+            lines.append("")
+            lines.append(entry["taxonomy_note"])
+        lines.append("")
+        for absatz in paragraphs(entry["note"]):
+            lines.append(absatz)
+            lines.append("")
+
+    lines += [
+        "## Not in EDGAR at all",
+        "",
+        "No filer tags these, because they are not GAAP line items. The catalogue",
+        "computes them, and the form it uses is stated so a reader can tell whether",
+        "their own number should match.",
+        "",
+        "| Field | Computed as |",
+        "|---|---|",
+    ]
+    for entry in mapping["derived"]:
+        lines.append(f"| `{entry['field']}` | `{entry['from']}` |")
+    lines.append("")
+    for entry in mapping["derived"]:
+        lines.append(f"**`{entry['field']}`.** " + " ".join(entry["note"].split()))
+        lines.append("")
+
+    lines += [
+        "## What an unclassified balance sheet costs",
+        "",
+        "Banks and some conglomerates do not split current from non-current. The",
+        "inputs below are not missing for them, they are undefined, and so is every",
+        "factor that needs one.",
+        "",
+    ]
+    lines += [
+        "Two different things happen, and lumping them together would overstate the",
+        "damage. An entry that needs all of its inputs is undefined for that filer. An",
+        "entry of the `growth` family is a transformation over one chosen series and",
+        "lists all eleven it accepts, so it loses that series and keeps working on the",
+        "others. The split below rests on that reading of the growth family, which is",
+        "stated here rather than buried in the generator.",
+        "",
+    ]
+    for entry in mapping["unavailable"]:
+        fehlt = set(entry["inputs"])
+        betroffen = [f for f in catalog if fehlt & set(f.inputs)]
+        undefiniert = sorted(f.id for f in betroffen if f.family != "growth")
+        verkuerzt = sorted(f.id for f in betroffen if f.family == "growth")
+
+        lines.append(f"**{entry['reason']}**")
+        lines.append("")
+        lines.append(
+            f"Filers: {', '.join(entry['filers_affected'])}. "
+            f"Inputs: {', '.join(f'`{i}`' for i in entry['inputs'])}."
+        )
+        lines.append("")
+        if undefiniert:
+            lines.append(
+                f"Undefined for those filers, {len(undefiniert)} entries: "
+                + ", ".join(f"`{i}`" for i in undefiniert)
+                + "."
+            )
+        else:
+            lines.append("No entry becomes undefined.")
+        lines.append("")
+        if verkuerzt:
+            lines.append(
+                f"Still usable on the remaining series, {len(verkuerzt)} entries of the "
+                "growth family: " + ", ".join(f"`{i}`" for i in verkuerzt) + "."
+            )
+            lines.append("")
+
+    return "\n".join(lines).rstrip("\n") + "\n"
+
+
 def compare(target: Path, rendered: str, write: bool) -> int:
     """Write or check one document. Returns the number of findings."""
     where = target.relative_to(ROOT)
@@ -337,13 +483,17 @@ def main() -> int:
 
     catalog = load_catalog(ROOT / "catalog")
     mapping = yaml.safe_load(MAPPING.read_text(encoding="utf-8"))
+    edgar = yaml.safe_load(EDGAR_MAPPING.read_text(encoding="utf-8"))
+    evidence = json.loads((ROOT / edgar["evidence"]).read_text(encoding="utf-8"))
 
     print(
         f"check_docs_current: {len(catalog)} catalogue entries, "
-        f"{len(mapping['mappings'])} TTR mappings, 2 document(s)"
+        f"{len(mapping['mappings'])} TTR mappings, "
+        f"{len(edgar['fields'])} EDGAR fields, 3 document(s)"
     )
     findings = compare(CATALOGUE, render(catalog), arguments.write)
     findings += compare(COMPARISON, render_comparison(mapping), arguments.write)
+    findings += compare(EDGAR_DOC, render_edgar(edgar, evidence, catalog), arguments.write)
 
     if findings:
         print("\n  Run: python3 scripts/check_docs_current.py --write", file=sys.stderr)

@@ -1,0 +1,373 @@
+# How the fundamental half of this catalogue's data contract lines up with
+# EDGAR, the SEC's filing archive.
+#
+# ── WHAT THIS FILE IS, AND WHAT IT DELIBERATELY IS NOT ─────────────────────
+#
+# It is a translation table: for every field in the `fundamental` group of
+# `catalog/inputs.yaml`, the XBRL concepts a filer might have used for it, in
+# the order to try them.
+#
+# It is NOT a downloader. This package opens no socket and takes no dependency
+# on an HTTP client, and that is a decision rather than an omission. A fetcher
+# would drag in rate limiting, caching, a declared contact for the SEC's
+# fair-access policy, and a second thing to keep working. Whoever has a data
+# pipeline already has those. What they do not have is the answer to "which tag
+# actually holds gross profit", and that is what is below.
+#
+# ── WHY A LIST AND NOT A NAME ──────────────────────────────────────────────
+#
+# XBRL lets a filer choose the concept. Two companies reporting the same line
+# use different tags, and one company changes its own tag between years. A
+# single name per field looks tidy and is wrong for most of the market.
+#
+# Measured on 2026-09-18 against seven filers chosen for different shapes, all
+# seven across all 26 fields. The evidence is `tests/data/edgar_coverage.json`.
+# A sample of what came out:
+#
+#   Revenues            current for JPM, last used by AAPL in FY2018
+#   GrossProfit         AAPL only; WMT tags CostOfRevenue and no gross profit
+#   OperatingIncomeLoss absent for JPM, last used by BRK in FY2012
+#   AssetsCurrent       AAPL and WMT only
+#   Liabilities         everyone except WMT, which never tags the total
+#   InterestExpense     stale for four of seven; no tag is current everywhere
+#   NetIncomeLoss       a year behind ProfitLoss at Ford, which is not a typo
+#
+# ── THE TRAP THIS FILE IS MOSTLY ABOUT ─────────────────────────────────────
+#
+# A concept that exists is not a concept in use. `Revenues` is present in
+# Apple's company facts and has not been reported on a 10-K since 2018. Code
+# that takes the first tag it finds reads a seven-year-old number and returns
+# it as current. So each entry below carries the last fiscal year each filer
+# actually used it, and a consumer is expected to pick by that, not by presence.
+#
+# ── WHAT AN UNCLASSIFIED BALANCE SHEET COSTS ───────────────────────────────
+#
+# Banks and some conglomerates do not split current from non-current, because
+# the distinction does not mean anything for them. The fields are not missing
+# for those filers, they are undefined, and every ratio built on them is too.
+# `unavailable` at the bottom says which factors in this catalogue that removes.
+
+version: 1
+source: EDGAR XBRL company facts
+endpoint: "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
+measured_on: "2026-09-18"
+evidence: tests/data/edgar_coverage.json
+
+# Reading the archive with a program requires a User-Agent that names you and
+# gives a contact. An undeclared client gets HTTP 403 with a page titled "Your
+# Request Originates from an Undeclared Automated Tool". This file states the
+# requirement; supplying the contact is the consumer's business, not this
+# package's.
+access: >-
+  SEC fair access: send a User-Agent naming the application and a contact
+  address. Ten requests per second. The company facts document for a large
+  filer is tens of megabytes, so fetch once and keep it.
+
+filers_measured:
+  - {ticker: AAPL, cik: "0000320193", shape: "classified balance sheet, one class, no NCI"}
+  - {ticker: JPM, cik: "0000019617", shape: "bank, unclassified balance sheet"}
+  - {ticker: WMT, cik: "0000104169", shape: "retailer, NCI, no total liabilities tagged"}
+  - {ticker: BRKB, cik: "0001067983", shape: "conglomerate, unclassified, two share classes"}
+  - {ticker: F, cik: "0000037996", shape: "manufacturer with a captive finance arm"}
+  - {ticker: TGT, cik: "0000027419", shape: "retailer"}
+  - {ticker: KO, cik: "0000021344", shape: "consumer goods, long tagging history"}
+
+fields:
+  - field: revenue
+    unit: USD
+    concepts: [RevenueFromContractWithCustomerExcludingAssessedTax, Revenues, SalesRevenueNet]
+    note: >-
+      The order matters and is the clearest case in the file. ASC 606 moved most
+      filers to the first tag from 2018. `Revenues` stayed current for banks and
+      for anything that never adopted the contract-revenue presentation, so it
+      cannot simply be dropped. `SalesRevenueNet` is the pre-2018 tag and is
+      dead everywhere measured: AAPL FY2017, WMT FY2018.
+
+  - field: cost_of_revenue
+    unit: USD
+    concepts: [CostOfGoodsAndServicesSold, CostOfRevenue]
+    historical: [CostOfGoodsSold]
+    note: >-
+      `CostOfGoodsAndServicesSold` is current for four of the seven filers
+      measured (AAPL, F, TGT, KO). WMT uses `CostOfRevenue` and tags nothing
+      else. `CostOfGoodsSold` is the old name and is dead: the only filer
+      measured that ever used it is KO, last in FY2017. A consumer that knows
+      one of the two current tags covers part of the market and silently misses
+      the rest. Banks report no cost of revenue at all.
+
+  - field: gross_profit
+    unit: USD
+    concepts: [GrossProfit]
+    derive_if_absent: "revenue - cost_of_revenue"
+    note: >-
+      Current for AAPL and KO, stale for TGT since FY2017, and never tagged by
+      WMT, JPM, BRK or F. WMT gives revenue and cost of revenue and leaves the
+      subtraction to the reader. Deriving it is exact where both inputs come
+      from the same statement, which is why the fallback is stated rather than
+      left to guesswork.
+
+  - field: research_and_development
+    unit: USD
+    concepts: [ResearchAndDevelopmentExpense]
+    note: >-
+      Present only where the filer has the line. Absent is absent, not zero: a
+      retailer and a bank do not report it, and treating that as zero R&D
+      spending makes any intensity ratio meaningless.
+
+  - field: ebit
+    unit: USD
+    concepts: [OperatingIncomeLoss]
+    note: >-
+      This is an approximation and the entry says so. Operating income is not
+      EBIT wherever non-operating income sits between them, which is most large
+      filers. Worse, it is unavailable for the shapes that need care: absent for
+      JPM entirely, last reported by BRK in FY2012. Every factor built on it
+      inherits both problems.
+
+  - field: depreciation_amortisation
+    unit: USD
+    concepts:
+      [DepreciationDepletionAndAmortization, DepreciationAmortizationAndAccretionNet,
+       DepreciationAndAmortization]
+    note: >-
+      Three tags, and the current one differs by filer: AAPL and BRK on the
+      first, JPM and WMT on the second. WMT used the first until FY2019 and then
+      switched, which is the same trap as `Revenues` inside one company.
+
+  - field: interest_expense
+    unit: USD
+    concepts: [InterestExpenseNonoperating, InterestExpenseDebt, InterestExpense]
+    note: >-
+      The messiest field here, and the one where no tag is current everywhere.
+      Measured across seven filers: `InterestExpenseNonoperating` is current for
+      F, TGT and KO and absent for the other four. `InterestExpenseDebt` is
+      current for WMT and stale for AAPL (FY2021) and F (FY2020).
+      `InterestExpense`, the obvious first guess, is stale for AAPL, JPM, F and
+      TGT (all FY2023) and current only for BRK and KO. Any single choice is
+      wrong for most of this sample, which is why the order above puts the
+      obvious guess last rather than first.
+
+      For a bank the concept also means something different in kind: interest
+      expense is a cost of goods, not a financing charge, so interest-coverage
+      ratios built on it do not carry over.
+
+  - field: pretax_income
+    unit: USD
+    concepts:
+      [IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest,
+       IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments]
+    note: >-
+      The first is current for all four filers. The second differs by including
+      equity-method income and is the older presentation; it survives at BRK,
+      where equity-method holdings are the business.
+
+  - field: tax_expense
+    unit: USD
+    concepts: [IncomeTaxExpenseBenefit]
+    note: One tag, current for all four. One of the few fields with no choice to make.
+
+  - field: net_income
+    unit: USD
+    concepts: [NetIncomeLoss, ProfitLoss]
+    note: >-
+      Not interchangeable. `NetIncomeLoss` is attributable to the parent;
+      `ProfitLoss` includes noncontrolling interests. AAPL has no NCI and
+      therefore no `ProfitLoss` at all.
+
+      The order above is not a ranking by recency, and Ford is why: its
+      `NetIncomeLoss` stops at FY2024 while `ProfitLoss` is current to FY2025.
+      Preferring the first tag there returns a year-old figure. Preferring the
+      newer one returns a different measure. There is no rule that gets both
+      right, which is the point: pick the definition you want and accept what
+      it costs, rather than letting whichever tag is present decide. The
+      difference lands directly in EPS, ROE and every margin.
+
+  - field: eps_diluted
+    unit: USD/shares
+    concepts: [EarningsPerShareDiluted, IncomeLossFromContinuingOperationsPerDilutedShare]
+    note: >-
+      Absent for BRK, which reports per Class A and per Class B separately and
+      has no single diluted figure. A multi-class filer needs a decision this
+      table cannot make for it.
+
+  - field: operating_cash_flow
+    unit: USD
+    concepts:
+      [NetCashProvidedByUsedInOperatingActivities,
+       NetCashProvidedByUsedInOperatingActivitiesContinuingOperations]
+    note: >-
+      Current for all four on the first tag. The second appears where
+      discontinued operations were separated and is stale everywhere measured.
+
+  - field: capital_expenditure
+    unit: USD
+    concepts: [PaymentsToAcquirePropertyPlantAndEquipment, PaymentsToAcquireProductiveAssets]
+    note: >-
+      Absent for JPM. A bank's capital spending is not a separate investing line
+      in the same sense, so free cash flow as this catalogue defines it does not
+      exist for it.
+
+      `PaymentsToAcquireProductiveAssets` is not the historical spelling it
+      looks like: it is stale for AAPL (FY2014) and the only tag Ford uses, to
+      FY2025. Both belong in the chain.
+
+      The sign is positive in the filing: it is a payment. Whoever maps it has
+      to negate or subtract, and getting that wrong flips free cash flow rather
+      than merely shifting it.
+
+  - field: dividends_paid
+    unit: USD
+    concepts: [PaymentsOfDividendsCommonStock, PaymentsOfDividends]
+    note: >-
+      The two are current for different filers, WMT on the first and AAPL and
+      JPM on the second, and they are not the same thing: the second includes
+      preferred dividends. BRK pays none and tags neither. Positive in the
+      filing, as with capital expenditure.
+
+  - field: dividend_per_share_paid
+    unit: USD/shares
+    concepts: [CommonStockDividendsPerShareCashPaid]
+    note: >-
+      Effectively dead. The latest annual use measured is JPM FY2017 and WMT
+      FY2012; AAPL carries the tag but has never reported it on a 10-K. Prefer
+      the declared figure below and say which one you used.
+
+  - field: dividend_per_share_declared
+    unit: USD/shares
+    concepts: [CommonStockDividendsPerShareDeclared]
+    note: >-
+      Current for the three filers that pay a dividend. Declared and paid differ
+      by timing, and a yield computed from one and compared against the other is
+      wrong by a quarter.
+
+  - field: total_assets
+    unit: USD
+    concepts: [Assets]
+    note: One tag, current for all four.
+
+  - field: current_assets
+    unit: USD
+    concepts: [AssetsCurrent]
+    note: >-
+      AAPL and WMT only. JPM and BRK present unclassified balance sheets, where
+      the concept does not exist because the split has no meaning for them.
+
+  - field: inventory
+    unit: USD
+    concepts: [InventoryNet]
+    note: Absent for JPM, as it is for any filer without physical stock.
+
+  - field: cash_and_equivalents
+    unit: USD
+    concepts:
+      [CashAndCashEquivalentsAtCarryingValue,
+       CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents]
+    note: >-
+      The second includes restricted cash and is therefore the larger number. It
+      is the current tag for JPM and BRK, whose first-tag use ended in FY2018
+      and FY2017. Mixing the two across a universe compares cash a company can
+      spend against cash it cannot.
+
+  - field: total_liabilities
+    unit: USD
+    concepts: [Liabilities]
+    derive_if_absent: "total_assets - total_equity"
+    note: >-
+      Missing more often than it is present among consumer filers: WMT, TGT and
+      KO never tag the subtotal, while AAPL, JPM, BRK and F do. The derivation
+      is therefore the normal path, not the fallback. It is exact by the
+      accounting identity, provided total_equity includes noncontrolling
+      interests. With common equity instead it is wrong by the NCI.
+
+  - field: current_liabilities
+    unit: USD
+    concepts: [LiabilitiesCurrent]
+    note: AAPL and WMT only, for the same reason as current_assets.
+
+  - field: long_term_debt
+    unit: USD
+    concepts: [LongTermDebtNoncurrent, LongTermDebt]
+    note: >-
+      `LongTermDebt` is the total including the current portion;
+      `LongTermDebtNoncurrent` excludes it. They differ by the amount due within
+      a year, which is exactly the amount a leverage ratio is sensitive to.
+      Absent for BRK, and JPM last used one in FY2013.
+
+  - field: total_equity
+    unit: USD
+    concepts: [StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest, StockholdersEquity]
+    note: >-
+      The first is the one this field means. AAPL has no NCI and tags only the
+      second, where the two coincide. For WMT and BRK they differ, and using the
+      second as total equity understates the balance sheet by the minority
+      interest.
+
+  - field: common_equity
+    unit: USD
+    concepts: [StockholdersEquity]
+    note: >-
+      Deliberately the parent-only figure, which is what book value per common
+      share is built on. It is the same tag as the fallback above, used with a
+      different intent, and that is why the catalogue carries both fields.
+
+  - field: shares_outstanding
+    unit: shares
+    concepts: [EntityCommonStockSharesOutstanding, CommonStockSharesOutstanding, WeightedAverageNumberOfDilutedSharesOutstanding]
+    taxonomy_note: "EntityCommonStockSharesOutstanding is in the dei taxonomy, not us-gaap."
+    note: >-
+      Three tags meaning three things: the count on the cover page at filing
+      date, the count at the balance sheet date, and the weighted average used
+      for EPS. WMT's `CommonStockSharesOutstanding` stops at FY2011 while the
+      cover-page figure is current. BRK's cover-page figure stops at FY2010
+      because it reports per class. Per-share factors are sensitive to which one
+      is chosen, and a market capitalisation built on the weighted average is
+      wrong by every buyback in the year.
+
+derived:
+  - field: ebitda
+    from: "ebit + depreciation_amortisation"
+    note: >-
+      No EDGAR concept. It is not GAAP, so no filer tags it, and every vendor
+      figure called EBITDA is somebody's reconstruction. This one inherits the
+      operating-income approximation above.
+
+  - field: free_cash_flow
+    from: "operating_cash_flow - capital_expenditure"
+    note: >-
+      No concept. Note the sign: capital expenditure is a positive payment in
+      the filing, so it is subtracted, not added. Undefined for a filer with no
+      capital expenditure line, JPM among those measured.
+
+  - field: total_debt
+    from: "long_term_debt + short-term borrowings"
+    note: >-
+      No single concept, and the second half has no stable tag across filers:
+      DebtCurrent, ShortTermBorrowings, CommercialPaper and
+      LongTermDebtCurrent all appear. This is the least reliable field here and
+      is left explicitly incomplete rather than given a tag that would be wrong
+      for most of the market.
+
+  - field: invested_capital
+    from: "total_debt + total_equity - cash_and_equivalents"
+    note: >-
+      No concept, and definitions differ between practitioners over whether cash
+      is netted and which liabilities count as debt. The form above is the one
+      the catalogue's ROIC entry uses, stated so a reader can tell whether their
+      number should match.
+
+# Factors in this catalogue that cannot be computed for a filer whose balance
+# sheet is unclassified, which includes most banks and insurers. Not a data
+# gap: the inputs do not exist for them.
+unavailable:
+  - reason: "unclassified balance sheet: no AssetsCurrent or LiabilitiesCurrent"
+    filers_affected: [JPM, BRKB]
+    inputs: [current_assets, current_liabilities]
+  - reason: "no operating income reported"
+    filers_affected: [JPM]
+    inputs: [ebit]
+  - reason: "no capital expenditure line"
+    filers_affected: [JPM]
+    inputs: [capital_expenditure]
+  - reason: "multiple share classes, no single diluted EPS"
+    filers_affected: [BRKB]
+    inputs: [eps_diluted]
