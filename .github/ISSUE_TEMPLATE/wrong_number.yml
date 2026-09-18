@@ -1,0 +1,58 @@
+name: A factor returns the wrong number
+description: The implementation disagrees with the formula its entry states.
+labels: ["defect"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the report the project most wants. Four such defects once
+        survived the whole test suite, because every test recomputed them from
+        the same wrong premise. They were found by comparing against something
+        written elsewhere.
+
+  - type: input
+    id: factor_id
+    attributes:
+      label: Factor id
+      placeholder: rsi
+    validations:
+      required: true
+
+  - type: textarea
+    id: input
+    attributes:
+      label: What you ran
+      description: >
+        The shortest input that shows it, with the data inline rather than as a
+        file. A handful of bars usually suffices.
+      render: python
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and where that came from
+      description: >
+        A published worked example, another package, an identity, arithmetic
+        done by hand. Which one matters more than the number: "TA-Lib says 54.3"
+        and "Wilder's own table says 54.3" carry different weight. Where two
+        packages simply chose different conventions, the answer may be a clearer
+        entry rather than a changed number.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What you got
+    validations:
+      required: true
+
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      placeholder: factorbase 0.1.0, Python 3.12, pandas 2.2.3
+    validations:
+      required: true
