@@ -22,6 +22,16 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Callable from the publish workflow. `ref` is the reason it exists: a tag is
+  # checked by checking out exactly its tree. Without it the call would check
+  # the caller's state, report green, and say nothing about what is going up.
+  workflow_call:
+    inputs:
+      ref:
+        description: "Commit or tag to check. Empty: whatever triggered the caller."
+        type: string
+        required: false
+        default: ""
 
 jobs:
   check:
@@ -33,6 +43,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Empty means the triggering state, so push and pull_request behave
+          # exactly as before.
+          ref: ${{ inputs.ref }}
 
       - uses: actions/setup-python@v7
         with:
@@ -48,6 +62,12 @@ jobs:
 
       - name: The wiring checker's own test
         run: python3 scripts/check_gates_wired.test.py
+
+      # The gate itself runs at publish time, where it has a tag to compare
+      # against. Its test needs none, so it runs here: a gate that can no
+      # longer refuse should surface before the tag, not during the upload.
+      - name: The tag-against-version gate's own test
+        run: python3 scripts/check_version_against_tag.test.py
 
       # Packaging metadata, on every push rather than at the moment of an
       # upload. The rule this catches was shipped for a day because hatchling
@@ -98,6 +118,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Empty means the triggering state, so push and pull_request behave
+          # exactly as before.
+          ref: ${{ inputs.ref }}
 
       - uses: actions/setup-python@v7
         with:
@@ -125,6 +149,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Empty means the triggering state, so push and pull_request behave
+          # exactly as before.
+          ref: ${{ inputs.ref }}
 
       - uses: actions/setup-python@v7
         with:

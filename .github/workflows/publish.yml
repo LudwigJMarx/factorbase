@@ -1,0 +1,92 @@
+# What goes to PyPI, and what it hangs on.
+#
+# ── WHY THIS FILE MATTERS ──────────────────────────────────────────────────
+#
+# 0.1.0 was built on a laptop and uploaded by hand. Nothing about the file on
+# PyPI can be held against the tag afterwards: a checksum says two files are
+# identical, not that the uploaded one came from this commit. Here CI builds
+# from the tag and PyPI records repository, workflow and commit against the
+# file (trusted publishing, OIDC). No long-lived token exists to lose.
+#
+# ── THE ORDERING IS THE POINT ──────────────────────────────────────────────
+#
+# `checks` runs against the tag's tree, not against main, and `build` hangs off
+# it via `needs`, so a tag cannot ship anything unchecked. That the tag and the
+# package version agree is its own checker, because both numbers are set by
+# hand.
+#
+# A tag has to carry the workflow that checks it. A tag older than this file
+# would be checked by a newer recipe against an older tree, which is how the
+# sibling project found this out; `workflow_dispatch` exists for that case and
+# writes every ref out rather than inheriting it.
+
+name: Publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish, e.g. v0.1.1"
+        required: true
+        type: string
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+    with:
+      ref: ${{ inputs.tag || github.ref_name }}
+
+  build:
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"  # the oldest version this package claims
+
+      - name: The tag and the package version say the same thing
+        run: python3 scripts/check_version_against_tag.py "${{ inputs.tag || github.ref_name }}"
+
+      - name: Tools
+        run: python3 -m pip install --upgrade pip && python3 -m pip install build twine
+
+      - name: Build
+        run: python3 -m build
+
+      # The same checker that runs on every push, now against the artifacts
+      # that are actually going up.
+      - name: The metadata this package would upload with
+        run: python3 scripts/check_metadata.py
+
+      - name: Metadata as the index receives it
+        run: python3 -m twine check dist/*
+
+      # In the log so the file on PyPI can later be held against the run that
+      # produced it.
+      - name: Checksums
+        run: sha256sum dist/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # the short-lived credential for trusted publishing, nothing else
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
